@@ -1,0 +1,52 @@
+# Standard Visual Studio / .NET
+[Bb]in/
+[Oo]bj/
+.vs/
+*.user
+*.suo
+*.userprefs
+*.sln.docstates
+
+# Visual Studio Code
+.vscode/
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+
+# AWS and Security
+.aws/
+aws-credentials
+aws-config
+*.pem
+*.key
+*.pfx
+*.p12
+*.crt
+*.csr
+credentials.csv
+
+# Environment Variables and Secrets
+.env
+.env.*
+secrets.json
+appsettings.Development.json
+appsettings.Local.json
+local.settings.json
+target.json
+
+# Logs
+*.log
+*.tmh
+
+# OS generated files
+.DS_Store
+Thumbs.db
