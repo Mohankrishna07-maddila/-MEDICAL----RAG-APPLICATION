@@ -7,55 +7,29 @@ namespace HealthBot.Api.Controllers;
 public class ChatController : ControllerBase
 {
     private readonly IAIService _ai;
-    private readonly IntentDetectionService _intentDetector;
-    private readonly RagService _rag;
     private readonly DynamoConversationMemory _memory;
 
     public ChatController(
         IAIService ai,
-        IntentDetectionService intentDetector,
-        RagService rag,
         DynamoConversationMemory memory)
     {
         _ai = ai;
-        _intentDetector = intentDetector;
-        _rag = rag;
         _memory = memory;
     }
 
     [HttpPost]
     public async Task<IActionResult> Chat([FromBody] ChatRequest request)
     {
-        // 1️⃣ Load conversation memory (last N messages)
+        // 1️⃣ Load memory
         var history = await _memory.GetRecentMessagesAsync(request.SessionId);
 
-        // 2️⃣ Detect intent
-        var intent = await _intentDetector.DetectAsync(request.Message);
+        // 2️⃣ ONE LLM CALL (intent + answer)
+        var llmResult = await _ai.AskWithIntentAsync(
+            request.Message,
+            history
+        );
 
-        // 3️⃣ Route based on intent
-        string answer = intent switch
-        {
-            IntentType.PolicyInfo =>
-                "Policy info flow (RAG next)",
-
-            IntentType.ClaimProcess =>
-                await _rag.AnswerAsync(
-                    request.Message,
-                    intent,
-                    history
-                ),
-
-            IntentType.ClaimStatus =>
-                "Claim status flow (API later)",
-
-            IntentType.TalkToAgent =>
-                "Creating support ticket...",
-
-            _ =>
-                "Sorry, I didn’t understand."
-        };
-
-        // 4️⃣ Persist conversation to DynamoDB
+        // 3️⃣ Persist memory
         await _memory.AddMessageAsync(
             request.SessionId,
             "user",
@@ -65,14 +39,14 @@ public class ChatController : ControllerBase
         await _memory.AddMessageAsync(
             request.SessionId,
             "assistant",
-            answer
+            llmResult.Answer
         );
 
-        // 5️⃣ Return response
+        // 4️⃣ Return
         return Ok(new
         {
-            answer,
-            intent
+            intent = llmResult.Intent,
+            answer = llmResult.Answer
         });
     }
 }
