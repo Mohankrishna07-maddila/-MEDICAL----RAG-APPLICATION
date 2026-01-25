@@ -12,6 +12,11 @@
             @m.Content
         </p>
     }
+
+    @if (isTyping)
+    {
+        <p><i>Bot is typing...</i></p>
+    }
 </div>
 
 <br />
@@ -26,6 +31,7 @@
 @code {
     string sessionId = "ui-session";
     string message = "";
+    bool isTyping = false;
 
     List<ChatMessage> messages = new();
 
@@ -44,18 +50,14 @@
         if (string.IsNullOrWhiteSpace(message))
             return;
 
-        // 1️⃣ Show user message immediately
-        messages.Add(new ChatMessage(
-            sessionId,
-            "user",
-            message,
-            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-        ));
-
+        // Show user message immediately
+        messages.Add(new ChatMessage(sessionId, "user", message, Now()));
         var userMessage = message;
         message = "";
 
-        // 2️⃣ Call backend
+        // SHOW typing indicator
+        isTyping = true;
+
         var res = await Http.PostAsJsonAsync("/chat", new
         {
             sessionId,
@@ -64,16 +66,21 @@
 
         var data = await res.Content.ReadFromJsonAsync<ChatResponse>();
 
-        // 3️⃣ Show bot response immediately
+        // HIDE typing indicator
+        isTyping = false;
+
+        // Show bot response
         messages.Add(new ChatMessage(
             sessionId,
             "assistant",
             data?.answer ?? "No response",
-            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            Now()
         ));
 
-
+        await LoadHistory();
     }
+
+    long Now() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
     async Task LoadHistory()
     {
