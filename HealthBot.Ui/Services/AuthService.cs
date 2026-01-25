@@ -7,6 +7,8 @@ public class AuthService
     public string? Token { get; private set; }
     public string? Role { get; private set; }
 
+    public event Action? OnChange;
+
     public AuthService(HttpClient http)
     {
         _http = http;
@@ -23,13 +25,16 @@ public class AuthService
         await SetAuthHeader();
     }
 
-    private Task SetAuthHeader()
+    private async Task SetAuthHeader()
     {
         _http.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", Token);
 
-        return Task.CompletedTask;
+        NotifyStateChanged();
+        await Task.CompletedTask;
     }
+
+    private void NotifyStateChanged() => OnChange?.Invoke();
 }
 
 public record AuthResponse(string access_token, string role);

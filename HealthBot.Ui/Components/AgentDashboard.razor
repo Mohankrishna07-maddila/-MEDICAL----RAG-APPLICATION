@@ -1,0 +1,29 @@
+@inject HttpClient Http
+
+<h3>Agent Dashboard</h3>
+
+@if (tickets == null)
+{
+    <p>Loading tickets...</p>
+}
+else
+{
+    @foreach (var t in tickets)
+    {
+        <div style="border:1px solid gray; padding:8px; margin:5px;">
+            <b>@t.ticketId</b> — @t.status <br />
+            @t.reason
+        </div>
+    }
+}
+
+@code {
+    List<Ticket>? tickets;
+
+    protected override async Task OnInitializedAsync()
+    {
+        tickets = await Http.GetFromJsonAsync<List<Ticket>>("/agent/tickets/open");
+    }
+
+    record Ticket(string ticketId, string sessionId, string reason, string status);
+}

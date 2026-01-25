@@ -1,19 +1,36 @@
 ﻿@page "/"
 @inject AuthService Auth
+@implements IDisposable
 
-<h3>Login</h3>
-
-<button @onclick='() => Login("user")'>Login as User</button>
-<button @onclick='() => Login("agent")'>Login as Agent</button>
-
-@if (Auth.Token != null)
+@if (Auth.Token == null)
 {
-    <p>Logged in as: <b>@Auth.Role</b></p>
+    <h3>Login</h3>
+
+    <button @onclick='() => Login("user")'>Login as User</button>
+    <button @onclick='() => Login("agent")'>Login as Agent</button>
+}
+else if (Auth.Role == "User")
+{
+    <UserChat />
+}
+else if (Auth.Role == "Agent")
+{
+    <AgentDashboard />
 }
 
 @code {
+    protected override void OnInitialized()
+    {
+        Auth.OnChange += StateHasChanged;
+    }
+
     async Task Login(string user)
     {
         await Auth.Login(user);
+    }
+
+    public void Dispose()
+    {
+        Auth.OnChange -= StateHasChanged;
     }
 }

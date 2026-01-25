@@ -1,0 +1,39 @@
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+<h3>User Chat</h3>
+
+<div style="margin-bottom:10px;">
+    <input type="text"
+           @bind="message"
+           placeholder="Ask something..."
+           style="width:300px; padding:6px;" />
+</div>
+
+<div>
+    <button @onclick="Send">Send</button>
+</div>
+
+@if (!string.IsNullOrEmpty(reply))
+{
+    <p><b>Bot:</b> @reply</p>
+}
+
+@code {
+    private string message = "";
+    private string reply = "";
+
+    private async Task Send()
+    {
+        var res = await Http.PostAsJsonAsync("/chat", new
+        {
+            sessionId = "ui-session",
+            message = message
+        });
+
+        var data = await res.Content.ReadFromJsonAsync<ChatResponse>();
+        reply = data?.answer ?? "No response";
+    }
+
+    private record ChatResponse(string answer, string intent);
+}
