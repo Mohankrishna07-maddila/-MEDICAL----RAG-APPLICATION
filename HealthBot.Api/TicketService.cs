@@ -1,10 +1,18 @@
 using HealthBot.Api.Models;
+using HealthBot.Api.Services;
 
 namespace HealthBot.Api;
 
 public class TicketService
 {
-    public Task<SupportTicket> CreateAsync(
+    private readonly DynamoTicketRepository _repo;
+
+    public TicketService(DynamoTicketRepository repo)
+    {
+        _repo = repo;
+    }
+
+    public async Task<SupportTicket> CreateAsync(
         string sessionId,
         string reason)
     {
@@ -17,9 +25,10 @@ public class TicketService
             CreatedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
         };
 
-        // 🔜 Later: persist to DynamoDB / RDS
-        Console.WriteLine($"[TICKET CREATED] {ticket.TicketId}");
+        await _repo.SaveAsync(ticket);
 
-        return Task.FromResult(ticket);
+        Console.WriteLine($"[TICKET STORED] {ticket.TicketId}");
+
+        return ticket;
     }
 }
