@@ -1,6 +1,7 @@
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
 using Microsoft.Extensions.Configuration;
+using HealthBot.Api.Models;
 
 namespace HealthBot.Api;
 
@@ -67,7 +68,13 @@ public class DynamoConversationMemory
         {
             _fallbackMemory[sessionId] = new List<ChatMessage>();
         }
-        _fallbackMemory[sessionId].Add(new ChatMessage(role, content));
+        _fallbackMemory[sessionId].Add(new ChatMessage 
+        { 
+            Role = role, 
+            Content = content,
+            SessionId = sessionId,
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+        });
     }
 
     public async Task<List<ChatMessage>> GetRecentMessagesAsync(string sessionId, int limit = 5)
@@ -92,9 +99,13 @@ public class DynamoConversationMemory
 
                 return response.Items
                     .OrderBy(i => long.Parse(i["Timestamp"].N))
-                    .Select(i => new ChatMessage(
-                        i["Role"].S,
-                        i["Content"].S))
+                    .Select(i => new ChatMessage
+                    {
+                        Role = i["Role"].S,
+                        Content = i["Content"].S,
+                        SessionId = i["SessionId"].S,
+                        Timestamp = long.Parse(i["Timestamp"].N)
+                    })
                     .ToList();
             }
             catch (Exception ex)
@@ -110,5 +121,57 @@ public class DynamoConversationMemory
             return messages.TakeLast(limit).ToList();
         }
         return new List<ChatMessage>();
+    }
+
+    public async Task<List<ChatMessage>> GetLastMessagesAsync(
+        string sessionId,
+        int limit = 10)
+    {
+        // If DynamoDB unavailable → fallback to in-memory
+        if (_client == null)
+        {
+            if (_fallbackMemory.TryGetValue(sessionId, out var messages))
+            {
+                return messages
+                    .OrderByDescending(m => m.Timestamp)
+                    .Take(limit)
+                    .OrderBy(m => m.Timestamp)
+                    .ToList();
+            }
+            return new List<ChatMessage>();
+        }
+
+        try 
+        {
+            var request = new QueryRequest
+            {
+                TableName = TableName,
+                KeyConditionExpression = "SessionId = :sid",
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                {
+                    [":sid"] = new AttributeValue { S = sessionId }
+                },
+                ScanIndexForward = false,
+                Limit = limit
+            };
+
+            var response = await _client.QueryAsync(request);
+
+            return response.Items
+                .Select(i => new ChatMessage
+                {
+                    SessionId = i["SessionId"].S,
+                    Role = i["Role"].S,
+                    Content = i["Content"].S,
+                    Timestamp = long.Parse(i["Timestamp"].N)
+                })
+                .OrderBy(m => m.Timestamp)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+             Console.WriteLine($"[ERROR] DynamoDB Query failed: {ex.Message}");
+             return new List<ChatMessage>();
+        }
     }
 }

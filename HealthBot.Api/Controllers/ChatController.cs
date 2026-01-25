@@ -60,6 +60,13 @@ public class ChatController : ControllerBase
             ticketId
         });
     }
+
+    [HttpGet("history/{sessionId}")]
+    public async Task<IActionResult> GetHistory(string sessionId)
+    {
+        var messages = await _memory.GetLastMessagesAsync(sessionId);
+        return Ok(messages);
+    }
 }
 
 public record ChatRequest(string SessionId, string Message);

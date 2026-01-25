@@ -3,37 +3,79 @@
 
 <h3>User Chat</h3>
 
-<div style="margin-bottom:10px;">
-    <input type="text"
-           @bind="message"
-           placeholder="Ask something..."
-           style="width:300px; padding:6px;" />
+<div style="border:1px solid #ccc; padding:10px; height:300px; overflow:auto;">
+    @foreach (var m in messages)
+    {
+        <p>
+            <b>@(m.Role == "user" ? "You" : "Bot"):</b>
+            @m.Content
+        </p>
+    }
 </div>
 
-<div>
-    <button @onclick="Send">Send</button>
-</div>
+<br />
 
-@if (!string.IsNullOrEmpty(reply))
-{
-    <p><b>Bot:</b> @reply</p>
-}
+<input type="text"
+       @bind="message"
+       placeholder="Ask something..."
+       style="width:300px; padding:6px;" />
+
+<button @onclick="Send">Send</button>
 
 @code {
-    private string message = "";
-    private string reply = "";
+    string sessionId = "ui-session";
+    string message = "";
 
-    private async Task Send()
+    List<ChatMessage> messages = new();
+
+    protected override async Task OnInitializedAsync()
     {
+        await LoadHistory();
+    }
+
+    async Task Send()
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return;
+
+        // 1️⃣ Show user message immediately
+        messages.Add(new ChatMessage(
+            sessionId,
+            "user",
+            message,
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+        ));
+
+        var userMessage = message;
+        message = "";
+
+        // 2️⃣ Call backend
         var res = await Http.PostAsJsonAsync("/chat", new
         {
-            sessionId = "ui-session",
-            message = message
+            sessionId,
+            message = userMessage
         });
 
         var data = await res.Content.ReadFromJsonAsync<ChatResponse>();
-        reply = data?.answer ?? "No response";
+
+        // 3️⃣ Show bot response immediately
+        messages.Add(new ChatMessage(
+            sessionId,
+            "assistant",
+            data?.answer ?? "No response",
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+        ));
+
+        // 4️⃣ Sync with DB (optional but correct)
+        await LoadHistory();
     }
 
-    private record ChatResponse(string answer, string intent);
+    async Task LoadHistory()
+    {
+        messages = await Http.GetFromJsonAsync<List<ChatMessage>>(
+            $"/chat/history/{sessionId}") ?? new();
+    }
+
+    record ChatMessage(string SessionId, string Role, string Content, long Timestamp);
+    record ChatResponse(string answer, string intent);
 }

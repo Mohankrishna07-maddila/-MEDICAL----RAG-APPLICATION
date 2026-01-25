@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
+using HealthBot.Api.Models;
 
 namespace HealthBot.Api;
 
