@@ -11,6 +11,18 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("BlazorClient", policy =>
+    {
+        policy
+            .WithOrigins("http://localhost:5125")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
+
 var jwt = builder.Configuration.GetSection("Jwt");
 
 builder.Services
@@ -41,6 +53,9 @@ builder.Services.AddSingleton<DynamoTicketRepository>();
 builder.Services.AddSingleton<TicketService>();
 
 var app = builder.Build();
+
+app.UseCors("BlazorClient");
+
 
 app.UseAuthentication();
 app.UseAuthorization();
