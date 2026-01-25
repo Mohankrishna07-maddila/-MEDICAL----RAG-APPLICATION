@@ -1,9 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using HealthBot.Api.Services;
+using Microsoft.AspNetCore.Authorization;
+using HealthBot.Api.Auth;
 
 namespace HealthBot.Api.Controllers;
 
 [ApiController]
+[Authorize(Roles = Roles.Agent)]
 [Route("agent/tickets")]
 public class AgentTicketsController : ControllerBase
 {

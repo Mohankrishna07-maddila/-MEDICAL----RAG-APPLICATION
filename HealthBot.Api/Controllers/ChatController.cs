@@ -1,8 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using HealthBot.Api.Auth;
 
 namespace HealthBot.Api.Controllers;
 
 [ApiController]
+[Authorize(Roles = Roles.User)]
 [Route("chat")]
 public class ChatController : ControllerBase
 {
