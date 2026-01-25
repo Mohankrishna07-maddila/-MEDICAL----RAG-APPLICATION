@@ -14,7 +14,7 @@ public class AgentTicketsController : ControllerBase
         _tickets = tickets;
     }
 
-    // 1️⃣ List open tickets
+    // LIST OPEN
     [HttpGet("open")]
     public async Task<IActionResult> GetOpenTickets()
     {
@@ -22,15 +22,17 @@ public class AgentTicketsController : ControllerBase
         return Ok(tickets);
     }
 
-    // 2️⃣ Get ticket by ID and CreatedAt
-    [HttpGet("{ticketId}/{createdAt}")]
-    public async Task<IActionResult> GetTicket(string ticketId, long createdAt)
+    // GET BY ID + CREATEDAT  ✅ THIS IS THE ONE YOU NEED
+    [HttpGet("{ticketId}/{createdAt:long}")]
+    public async Task<IActionResult> GetTicket(
+        string ticketId,
+        long createdAt)
     {
         var ticket = await _tickets.GetAsync(ticketId, createdAt);
         return ticket is null ? NotFound() : Ok(ticket);
     }
 
-    // 3️⃣ Update ticket status
+    // UPDATE STATUS
     [HttpPut("{ticketId}/status")]
     public async Task<IActionResult> UpdateStatus(
         string ticketId,
