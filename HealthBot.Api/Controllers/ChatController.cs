@@ -8,45 +8,53 @@ public class ChatController : ControllerBase
 {
     private readonly IAIService _ai;
     private readonly DynamoConversationMemory _memory;
+    private readonly TicketService _ticketService;
 
     public ChatController(
         IAIService ai,
-        DynamoConversationMemory memory)
+        DynamoConversationMemory memory,
+        TicketService ticketService)
     {
         _ai = ai;
         _memory = memory;
+        _ticketService = ticketService;
     }
 
     [HttpPost]
     public async Task<IActionResult> Chat([FromBody] ChatRequest request)
     {
-        // 1️⃣ Load memory
         var history = await _memory.GetRecentMessagesAsync(request.SessionId);
 
-        // 2️⃣ ONE LLM CALL (intent + answer)
         var llmResult = await _ai.AskWithIntentAsync(
             request.Message,
             history
         );
 
-        // 3️⃣ Persist memory
-        await _memory.AddMessageAsync(
-            request.SessionId,
-            "user",
-            request.Message
-        );
+        string answer = llmResult.Answer;
+        string? ticketId = null;
 
-        await _memory.AddMessageAsync(
-            request.SessionId,
-            "assistant",
-            llmResult.Answer
-        );
+        if (llmResult.Intent == "TalkToAgent")
+        {
+            var ticket = await _ticketService.CreateAsync(
+                request.SessionId,
+                request.Message
+            );
 
-        // 4️⃣ Return
+            ticketId = ticket.TicketId;
+
+            answer = $"I've created a support ticket for you. " +
+                     $"Your ticket ID is {ticketId}. " +
+                     $"A support agent will contact you shortly.";
+        }
+
+        await _memory.AddMessageAsync(request.SessionId, "user", request.Message);
+        await _memory.AddMessageAsync(request.SessionId, "assistant", answer);
+
         return Ok(new
         {
             intent = llmResult.Intent,
-            answer = llmResult.Answer
+            answer,
+            ticketId
         });
     }
 }
