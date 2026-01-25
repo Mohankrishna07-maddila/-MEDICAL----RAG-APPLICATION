@@ -28,10 +28,16 @@
 
 <button @onclick="Send">Send</button>
 
+<button @onclick="ToggleHistory" style="margin-left: 10px;">
+    @(showPreviousChat ? "Hide Previous Chat" : "Show Previous Chat")
+</button>
+
+@using System.IO
 @code {
     string sessionId = "ui-session";
     string message = "";
     bool isTyping = false;
+    bool showPreviousChat = false;
 
     List<ChatMessage> messages = new();
 
@@ -42,7 +48,22 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadHistory();
+        // Don't load history automatically
+    }
+
+    async Task ToggleHistory()
+    {
+        showPreviousChat = !showPreviousChat;
+        if (showPreviousChat)
+        {
+            await LoadHistory();
+        }
+        else
+        {
+            // Optional: clear messages if hiding? 
+            // Better to just keep current session. 
+            // For now, let's reload history to be safe when showing.
+        }
     }
 
     async Task Send()
@@ -50,37 +71,40 @@
         if (string.IsNullOrWhiteSpace(message))
             return;
 
-        // Show user message immediately
         messages.Add(new ChatMessage(sessionId, "user", message, Now()));
         var userMessage = message;
         message = "";
 
-        // SHOW typing indicator
+        // Placeholder for bot response
+        var botMessage = new ChatMessage(sessionId, "assistant", "", Now());
+        messages.Add(botMessage);
+
         isTyping = true;
 
-        var res = await Http.PostAsJsonAsync("/chat", new
+        var request = new HttpRequestMessage(HttpMethod.Post, "/chat/stream")
         {
-            sessionId,
-            message = userMessage
-        });
+            Content = JsonContent.Create(new { sessionId, message = userMessage })
+        };
 
-        var data = await res.Content.ReadFromJsonAsync<ChatResponse>();
+        using var response = await Http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+        using var stream = await response.Content.ReadAsStreamAsync();
+        using var reader = new StreamReader(stream);
 
-        // HIDE typing indicator
+        while (!reader.EndOfStream)
+        {
+            var chunk = await reader.ReadLineAsync();
+            // In case of empty lines or keep-alives
+            if (chunk != null)
+            {
+                botMessage.Content += chunk + " "; 
+                StateHasChanged();
+            }
+        }
+
         isTyping = false;
-
-        // Show bot response
-        messages.Add(new ChatMessage(
-            sessionId,
-            "assistant",
-            data?.answer ?? "No response",
-            Now()
-        ));
-
-        await LoadHistory();
+        // Do NOT reload history here, strictly keep the current view
+        // await LoadHistory(); 
     }
-
-    long Now() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
     async Task LoadHistory()
     {
@@ -88,6 +112,26 @@
             $"/chat/history/{sessionId}") ?? new();
     }
 
-    record ChatMessage(string SessionId, string Role, string Content, long Timestamp);
+    long Now() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+    // Mutable class for streaming updates
+    public class ChatMessage
+    {
+        public string SessionId { get; set; }
+        public string Role { get; set; }
+        public string Content { get; set; }
+        public long Timestamp { get; set; }
+
+        public ChatMessage() { }
+
+        public ChatMessage(string sessionId, string role, string content, long timestamp)
+        {
+            SessionId = sessionId;
+            Role = role;
+            Content = content;
+            Timestamp = timestamp;
+        }
+    }
+
     record ChatResponse(string answer, string intent);
 }

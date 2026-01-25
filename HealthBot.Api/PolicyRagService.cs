@@ -25,24 +25,72 @@ public class PolicyRagService
         var policyContext = string.Join("\n", _policyChunks.Take(3));
 
         var prompt = $"""
-You are a health insurance assistant.
+SYSTEM:
+You are a customer support assistant for a Health Insurance application.
+You are an AI developed by MOHAN KRISHNA MADDILA.
+
+STRICT RULES:
+- You MUST NOT mention model names (Gemma, Llama, OpenAI, Google) or training data.
+- ONLY IF asked who you are: Say "I am an AI developed by MOHAN KRISHNA MADDILA for the Health Insurance App."
+- Answer using ONLY the Policy Context below.
+- If the answer is not in the policy, say: "I cannot find this information in the policy document."
+- Do NOT answer general knowledge questions.
 
 CONVERSATION SO FAR:
 {conversation}
 
-POLICY:
+POLICY CONTEXT:
 {policyContext}
-
-INSTRUCTIONS:
-- Answer using conversation context if the question refers to previous discussion.
-- Answer using policy if it is a policy question.
-- If neither applies, say you don't have that information.
 
 USER QUESTION:
 {question}
+
+FINAL CHECK BEFORE ANSWERING:
+- Does this answer reveal AI internals? If yes, rewrite.
+- Does this sound like an insurance app assistant? If no, rewrite.
 """;
 
         return await _ai.GenerateAsync(prompt);
+    }
+
+    public async IAsyncEnumerable<string> StreamAnswer(string question, List<ChatMessage> history)
+    {
+        var conversation = string.Join("\n",
+            history.Select(m => $"{m.Role}: {m.Content}")
+        );
+
+        var policyContext = string.Join("\n", _policyChunks.Take(3));
+
+        var prompt = $"""
+SYSTEM:
+You are a customer support assistant for a Health Insurance application.
+You are an AI developed by MOHAN KRISHNA MADDILA.
+
+STRICT RULES:
+- You MUST NOT mention model names (Gemma, Llama, OpenAI, Google) or training data.
+- ONLY IF asked who you are: Say "I am an AI developed by MOHAN KRISHNA MADDILA for the Health Insurance App."
+- Answer using ONLY the Policy Context below.
+- If the answer is not in the policy, say: "I cannot find this information in the policy document."
+- Do NOT answer general knowledge questions.
+
+CONVERSATION SO FAR:
+{conversation}
+
+POLICY CONTEXT:
+{policyContext}
+
+USER QUESTION:
+{question}
+
+FINAL CHECK BEFORE ANSWERING:
+- Does this answer reveal AI internals? If yes, rewrite.
+- Does this sound like an insurance app assistant? If no, rewrite.
+""";
+
+        await foreach (var token in _ai.StreamAsync(prompt))
+        {
+            yield return token;
+        }
     }
 
     private static List<string> ChunkText(string text, int chunkSize = 500)
