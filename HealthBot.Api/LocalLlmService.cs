@@ -77,6 +77,30 @@ Respond ONLY in valid JSON:
         )!;
     }
 
+    public async Task<string> GenerateAsync(string prompt)
+    {
+        var body = new
+        {
+            model = "gemma3:4b",
+            prompt = prompt,
+            stream = false,
+            options = new
+            {
+                num_predict = 300
+            }
+        };
+
+        var response = await _http.PostAsJsonAsync(
+            "http://localhost:11434/api/generate",
+            body
+        );
+
+        response.EnsureSuccessStatusCode();
+
+        var raw = await response.Content.ReadFromJsonAsync<OllamaResponse>();
+        return raw!.Response.Trim();
+    }
+
     private class OllamaResponse
     {
         public string Response { get; set; } = "";

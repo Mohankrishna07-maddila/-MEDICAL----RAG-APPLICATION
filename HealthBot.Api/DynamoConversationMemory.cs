@@ -77,55 +77,10 @@ public class DynamoConversationMemory
         });
     }
 
-    public async Task<List<ChatMessage>> GetRecentMessagesAsync(string sessionId, int limit = 5)
-    {
-        if (_client != null)
-        {
-            try
-            {
-                var request = new QueryRequest
-                {
-                    TableName = TableName,
-                    KeyConditionExpression = "SessionId = :sid",
-                    ExpressionAttributeValues = new Dictionary<string, AttributeValue>
-                    {
-                        [":sid"] = new AttributeValue { S = sessionId }
-                    },
-                    ScanIndexForward = false,
-                    Limit = limit
-                };
-
-                var response = await _client.QueryAsync(request);
-
-                return response.Items
-                    .OrderBy(i => long.Parse(i["Timestamp"].N))
-                    .Select(i => new ChatMessage
-                    {
-                        Role = i["Role"].S,
-                        Content = i["Content"].S,
-                        SessionId = i["SessionId"].S,
-                        Timestamp = long.Parse(i["Timestamp"].N)
-                    })
-                    .ToList();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[ERROR] DynamoDB read failed: {ex.Message}. Internal Error or Table Missing.");
-                // Fall through to fallback
-            }
-        }
-
-        // Fallback implementation
-        if (_fallbackMemory.TryGetValue(sessionId, out var messages))
-        {
-            return messages.TakeLast(limit).ToList();
-        }
-        return new List<ChatMessage>();
-    }
 
     public async Task<List<ChatMessage>> GetLastMessagesAsync(
         string sessionId,
-        int limit = 10)
+        int limit = 5)
     {
         // If DynamoDB unavailable → fallback to in-memory
         if (_client == null)
