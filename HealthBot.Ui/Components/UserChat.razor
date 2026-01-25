@@ -1,9 +1,10 @@
 @using System.Net.Http.Json
 @inject HttpClient Http
+@inject IJSRuntime JS
 
 <h3>User Chat</h3>
 
-<div style="border:1px solid #ccc; padding:10px; height:300px; overflow:auto;">
+<div id="chat-container" style="border:1px solid #ccc; padding:10px; height:300px; overflow:auto;">
     @foreach (var m in messages)
     {
         <p>
@@ -27,6 +28,11 @@
     string message = "";
 
     List<ChatMessage> messages = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await JS.InvokeVoidAsync("scrollToBottom", "chat-container");
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -66,8 +72,7 @@
             DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
         ));
 
-        // 4️⃣ Sync with DB (optional but correct)
-        await LoadHistory();
+
     }
 
     async Task LoadHistory()
