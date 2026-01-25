@@ -26,12 +26,26 @@ public class DynamoConversationMemory
         {
             try
             {
+                var now = DateTimeOffset.UtcNow;
+
                 var item = new Dictionary<string, AttributeValue>
                 {
                     ["SessionId"] = new AttributeValue { S = sessionId },
-                    ["Timestamp"] = new AttributeValue { N = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString() },
+
+                    ["Timestamp"] = new AttributeValue
+                    {
+                        N = now.ToUnixTimeMilliseconds().ToString()
+                    },
+
                     ["Role"] = new AttributeValue { S = role },
-                    ["Content"] = new AttributeValue { S = content }
+
+                    ["Content"] = new AttributeValue { S = content },
+
+                    // 🔥 TTL ATTRIBUTE (MANDATORY)
+                    ["ExpiresAt"] = new AttributeValue
+                    {
+                        N = now.AddHours(24).ToUnixTimeSeconds().ToString()
+                    }
                 };
 
                 await _client.PutItemAsync(new PutItemRequest
