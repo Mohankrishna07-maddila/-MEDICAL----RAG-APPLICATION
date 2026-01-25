@@ -1,17 +1,19 @@
 ﻿@page "/"
-@inject ApiTestService Api
+@inject AuthService Auth
 
-<h3>API Connection Test</h3>
+<h3>Login</h3>
 
-<button @onclick="TestApi">Test API</button>
+<button @onclick='() => Login("user")'>Login as User</button>
+<button @onclick='() => Login("agent")'>Login as Agent</button>
 
-<p>@result</p>
+@if (Auth.Token != null)
+{
+    <p>Logged in as: <b>@Auth.Role</b></p>
+}
 
 @code {
-    string result = "";
-
-    async Task TestApi()
+    async Task Login(string user)
     {
-        result = await Api.Ping();
+        await Auth.Login(user);
     }
 }
