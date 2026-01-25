@@ -31,4 +31,15 @@ public class TicketService
 
         return ticket;
     }
+    public Task<List<SupportTicket>> ListOpenAsync()
+        => _repo.ListOpenAsync();
+
+    public Task<SupportTicket?> GetAsync(string ticketId, long createdAt)
+        => _repo.GetAsync(ticketId, createdAt);
+
+    public Task UpdateStatusAsync(
+        string ticketId,
+        long createdAt,
+        string status)
+        => _repo.UpdateStatusAsync(ticketId, createdAt, status);
 }
