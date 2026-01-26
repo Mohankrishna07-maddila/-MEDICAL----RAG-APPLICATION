@@ -33,14 +33,72 @@ public class ChatController : ControllerBase
     public async Task<IActionResult> Chat([FromBody] ChatRequest request)
     {
         // Single prompt approach for non-streaming as well
+        // 1. Get History (Needed for greeting check)
         var history = await _memory.GetLastMessagesAsync(request.SessionId, 3);
         bool isFirstMessage = !history.Any();
 
+        // 2. Greeting Short-Circuit (Fix for loop)
+        bool isGreeting =
+            request.Message.Trim().Equals("hi", StringComparison.OrdinalIgnoreCase) ||
+            request.Message.Trim().Equals("hello", StringComparison.OrdinalIgnoreCase) ||
+            request.Message.Trim().Equals("hey", StringComparison.OrdinalIgnoreCase);
+
+        if (isFirstMessage && isGreeting)
+        {
+            /*
+             * We must save this interaction so that subsequent messages are NOT considered "first message".
+             * Otherwise, the user will be stuck in a "first message" loop if they say "hi" again or if logic depends on it.
+             */
+            await _memory.AddMessageAsync(request.SessionId, "user", request.Message, "QUESTION", "Greeting");
+            var greetingAnswer = "Hello! How can I help you with your health insurance today?";
+            await _memory.AddMessageAsync(request.SessionId, "assistant", greetingAnswer, "ANSWER", "Greeting");
+
+            return Ok(new
+            {
+                Intent = "Greeting",
+                Answer = greetingAnswer
+            });
+        }
+
+        // 3. HARD OVERRIDE: Explicit Agent Request
+        bool explicitAgentRequest = 
+            request.Message.Contains("connect to agent", StringComparison.OrdinalIgnoreCase) ||
+            request.Message.Contains("talk to agent", StringComparison.OrdinalIgnoreCase) ||
+            request.Message.Contains("human", StringComparison.OrdinalIgnoreCase) ||
+            request.Message.Contains("support", StringComparison.OrdinalIgnoreCase);
+
+        if (explicitAgentRequest)
+        {
+            var existingTicket = await _ticketService.GetActiveTicket(request.SessionId);
+
+            if (existingTicket != null)
+            {
+                return Ok(new
+                {
+                    Intent = "TalkToAgent",
+                    Answer = $"You are already connected to a human agent. Your ticket ID is {existingTicket.TicketId}.",
+                    TicketId = existingTicket.TicketId
+                });
+            }
+
+            var ticketId = await _ticketService.CreateTicketAsync(request.SessionId, request.Message);
+            return Ok(new
+            {
+                Intent = "TalkToAgent",
+                Answer = $"I’ve connected you to a human agent. A support ticket has been created. Ticket ID: {ticketId}.",
+                TicketId = ticketId
+            });
+        }
+
+
+
+        // 2. Standard RAG / Chat Flow
+        // We skip intent classification for simple flows, or use it just for context building if needed
         var hybridContext = await _hybrid.BuildContext(request.SessionId, request.Message, IntentType.PolicyInfo);
-        
         var prompt = BuildSystemPrompt(hybridContext, request.Message, isFirstMessage);
-        
         var answer = await _ai.GenerateAsync(prompt);
+
+        // 3. Save & Return
         await _memory.AddMessageAsync(request.SessionId, "user", request.Message, "QUESTION", "General");
         await _memory.AddMessageAsync(request.SessionId, "assistant", answer, "ANSWER", "General");
 
@@ -82,7 +140,7 @@ public class ChatController : ControllerBase
     {
         var greetingRule = isFirstMessage 
             ? "You may greet the user briefly." 
-            : "Do NOT greet. Continue the conversation naturally.";
+            : "Do NOT greet. Do not repeat capability statements. Only answer the question.";
 
         var identityRule = "";
         if (userMessage.Contains("who are you", StringComparison.OrdinalIgnoreCase))
@@ -127,7 +185,7 @@ FORBIDDEN RESPONSES:
 - Any self-referential or meta explanations
 
 If a question is outside scope, reply:
-“I can help with health insurance policy, claims, or connecting you to support.”
+“I’m here to help with health insurance questions. Could you tell me what you’d like to know?”
 
 {context}
 
@@ -138,6 +196,7 @@ INSTRUCTIONS:
 - Prefer conversation context for follow-ups.
 - Use policy only when relevant.
 - Stay within insurance domain.
+- If the user explicitly asks about the claim process: Explain the process first, THEN optionally say "If you want, I can connect you to a human agent."
 - FINAL CHECK: Does this response sound like a human insurance support agent working inside an app?
 """;
     }

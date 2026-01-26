@@ -64,13 +64,18 @@ public class HybridContextService
 
         // 3️⃣ Policy (Vector RAG)
         // Logic: Use RAG if it's NOT a follow-up OR if it IS a follow-up but has a new medical concept
-        if ((!isFollowUp || (isFollowUp && hasNewConcept)) && 
+        // Also skip RAG for very short greeting-like messages to reduce noise
+        if (question.Length > 5 && 
+            (!isFollowUp || (isFollowUp && hasNewConcept)) && 
             (intent == IntentType.PolicyInfo || intent == IntentType.ClaimProcess))
         {
             Console.WriteLine("[HYBRID] Using VECTOR RAG (policy)");
             var policy = await _rag.GetSemanticContext(question);
-            context.AppendLine("\nPOLICY CONTEXT:");
-            context.AppendLine(policy);
+            if (!string.IsNullOrWhiteSpace(policy))
+            {
+                context.AppendLine("\nPOLICY CONTEXT:");
+                context.AppendLine(policy);
+            }
         }
         else if (isFollowUp)
         {

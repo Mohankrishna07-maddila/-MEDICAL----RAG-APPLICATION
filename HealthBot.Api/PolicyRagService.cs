@@ -63,7 +63,7 @@ FORBIDDEN RESPONSES:
 - Any self-referential or meta explanations
 
 If a question is outside scope, reply:
-“I can help with health insurance policy, claims, or connecting you to support.”
+“I’m here to help with health insurance questions. Could you tell me what you’d like to know?”
 
 CONVERSATION SO FAR:
 {conversation}
@@ -119,7 +119,7 @@ FORBIDDEN RESPONSES:
 - Any self-referential or meta explanations
 
 If a question is outside scope, reply:
-“I can help with health insurance policy, claims, or connecting you to support.”
+“I’m here to help with health insurance questions. Could you tell me what you’d like to know?”
 
 CONVERSATION SO FAR:
 {conversation}
@@ -146,7 +146,9 @@ If not, rewrite before answering.
         var qEmb = await _embedder.EmbedAsync("search_query: " + question);
 
         var top = _vectors
-            .OrderByDescending(v => Cosine(qEmb, v.Embedding))
+            .Select(v => new { Text = v.Text, Score = Cosine(qEmb, v.Embedding) })
+            .Where(x => x.Score > 0.45f) 
+            .OrderByDescending(x => x.Score)
             .Take(3)
             .Select(v => v.Text);
 

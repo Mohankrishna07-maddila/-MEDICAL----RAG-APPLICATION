@@ -31,6 +31,19 @@ public class TicketService
 
         return ticket;
     }
+
+    // wrapper for ChatController compatibility
+    public async Task<string> CreateTicketAsync(string sessionId, string message)
+    {
+        var ticket = await CreateAsync(sessionId, message);
+        return ticket.TicketId;
+    }
+
+    public async Task<SupportTicket?> GetActiveTicket(string sessionId)
+    {
+        var openTickets = await ListOpenAsync();
+        return openTickets.FirstOrDefault(t => t.SessionId == sessionId);
+    }
     public Task<List<SupportTicket>> ListOpenAsync()
         => _repo.ListOpenAsync();
 
