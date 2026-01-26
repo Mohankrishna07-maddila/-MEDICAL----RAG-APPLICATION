@@ -21,7 +21,7 @@ public class DynamoConversationMemory
         );
     }
 
-    public async Task AddMessageAsync(string sessionId, string role, string content)
+    public async Task AddMessageAsync(string sessionId, string role, string content, string messageType = "", string intent = "")
     {
         if (_client != null)
         {
@@ -41,6 +41,10 @@ public class DynamoConversationMemory
                     ["Role"] = new AttributeValue { S = role },
 
                     ["Content"] = new AttributeValue { S = content },
+                    
+                    ["MessageType"] = new AttributeValue { S = messageType ?? "" },
+                    
+                    ["Intent"] = new AttributeValue { S = intent ?? "" },
 
                     // 🔥 TTL ATTRIBUTE (MANDATORY)
                     ["ExpiresAt"] = new AttributeValue
@@ -73,7 +77,9 @@ public class DynamoConversationMemory
             Role = role, 
             Content = content,
             SessionId = sessionId,
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            MessageType = messageType ?? "",
+            Intent = intent ?? ""
         });
     }
 
@@ -118,7 +124,9 @@ public class DynamoConversationMemory
                     SessionId = i["SessionId"].S,
                     Role = i["Role"].S,
                     Content = i["Content"].S,
-                    Timestamp = long.Parse(i["Timestamp"].N)
+                    Timestamp = long.Parse(i["Timestamp"].N),
+                    MessageType = i.ContainsKey("MessageType") ? i["MessageType"].S : "",
+                    Intent = i.ContainsKey("Intent") ? i["Intent"].S : ""
                 })
                 .OrderBy(m => m.Timestamp)
                 .ToList();
