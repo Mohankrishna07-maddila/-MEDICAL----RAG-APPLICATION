@@ -53,6 +53,7 @@ builder.Services.AddSingleton<DynamoTicketRepository>();
 builder.Services.AddSingleton<TicketService>();
 builder.Services.AddSingleton<EmbeddingService>();
 builder.Services.AddSingleton<PolicyRagService>();
+builder.Services.AddSingleton<HybridContextService>();
 
 var app = builder.Build();
 

@@ -153,6 +153,8 @@ If not, rewrite before answering.
         return string.Join("\n", top);
     }
 
+    public async Task<string> GetSemanticContext(string question) => await GetContext(question);
+
     float Cosine(float[] a, float[] b)
     {
         if (a.Length != b.Length) return 0;
