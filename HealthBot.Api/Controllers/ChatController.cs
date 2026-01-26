@@ -116,7 +116,50 @@ public class ChatController : ControllerBase
         // 2. Standard RAG / Chat Flow
         // We skip intent classification for simple flows, or use it just for context building if needed
         var hybridContext = await _hybrid.BuildContext(request.SessionId, request.Message, IntentType.PolicyInfo);
-        var prompt = BuildSystemPrompt(hybridContext, request.Message, isFirstMessage);
+
+        // Frustration Handoff Logic (Priority over Low Confidence)
+        if (hybridContext.IsFrustrated)
+        {
+             var existing = await _ticketService.GetActiveTicket(request.SessionId);
+             var tkt = existing?.TicketId ?? await _ticketService.CreateTicketAsync(request.SessionId, "Auto-created: User frustration detected");
+             
+             var msg = existing != null 
+                ? $"I see we're going in circles. You already have an open ticket (ID: {tkt}). I've notified the agent."
+                : $"I see we're going in circles and I want to make sure you get the right help. I've created a ticket (ID: {tkt}) and connected you to a human agent.";
+
+             return Ok(new
+             {
+                 Intent = "TalkToAgent",
+                 Answer = msg,
+                 TicketId = tkt
+             });
+        }
+
+        // Low Confidence Handoff Logic
+        if (hybridContext.IsLowConfidence)
+        {
+            var keywords = new[] { "claim", "policy", "insurance", "refund", "coverage", "hospital", "payment" };
+            bool isRelevant = keywords.Any(k => request.Message.Contains(k, StringComparison.OrdinalIgnoreCase));
+            
+            if (isRelevant)
+            {
+                var existing = await _ticketService.GetActiveTicket(request.SessionId);
+                var tkt = existing?.TicketId ?? await _ticketService.CreateTicketAsync(request.SessionId, "Auto-created: Low confidence policy query");
+                
+                var msg = existing != null
+                    ? $"I couldn't find details on that. You already have a ticket open (ID: {tkt})."
+                    : $"I couldn't find details on that specific policy question. I've created a ticket (ID: {tkt}) and connected you to a human agent who can help.";
+
+                return Ok(new
+                {
+                    Intent = "TalkToAgent",
+                    Answer = msg,
+                    TicketId = tkt
+                });
+            }
+        }
+
+        var prompt = BuildSystemPrompt(hybridContext.ContextString, request.Message, isFirstMessage);
         var answer = await _ai.GenerateAsync(prompt);
 
         // 3. Save & Return
@@ -142,7 +185,7 @@ public class ChatController : ControllerBase
 
         var hybridContext = await _hybrid.BuildContext(req.SessionId, req.Message, IntentType.PolicyInfo);
 
-        var prompt = BuildSystemPrompt(hybridContext, req.Message, isFirstMessage);
+        var prompt = BuildSystemPrompt(hybridContext.ContextString, req.Message, isFirstMessage);
         
         var tokenStream = _ai.StreamAsync(prompt);
 

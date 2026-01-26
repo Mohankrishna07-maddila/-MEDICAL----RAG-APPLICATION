@@ -157,6 +157,23 @@ If not, rewrite before answering.
 
     public async Task<string> GetSemanticContext(string question) => await GetContext(question);
 
+    public async Task<(string Context, bool Found)> GetDetailedContext(string question)
+    {
+        var qEmb = await _embedder.EmbedAsync("search_query: " + question);
+
+        var top = _vectors
+            .Select(v => new { Text = v.Text, Score = Cosine(qEmb, v.Embedding) })
+            .Where(x => x.Score > 0.45f) 
+            .OrderByDescending(x => x.Score)
+            .Take(3)
+            .ToList();
+
+        if (top.Count == 0)
+            return (string.Empty, false);
+
+        return (string.Join("\n", top.Select(v => v.Text)), true);
+    }
+
     float Cosine(float[] a, float[] b)
     {
         if (a.Length != b.Length) return 0;

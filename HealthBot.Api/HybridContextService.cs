@@ -18,12 +18,13 @@ public class HybridContextService
         _rag = rag;
     }
 
-    public async Task<string> BuildContext(
+    public async Task<HybridContextResult> BuildContext(
         string sessionId,
         string question,
         IntentType intent)
     {
         var context = new StringBuilder();
+        bool isLowConfidence = false;
 
         Console.WriteLine($"[HYBRID] Intent detected: {intent}");
 
@@ -37,12 +38,25 @@ public class HybridContextService
             question.Contains("understand", StringComparison.OrdinalIgnoreCase) ||
             question.Contains("mean", StringComparison.OrdinalIgnoreCase);
 
-        // 1️⃣ Conversation
-        var history = await _memory.GetLastMessagesAsync(sessionId, 5);
+        // 1️⃣ Conversation (Check for Frustration)
+        var history = await _memory.GetLastMessagesAsync(sessionId, 10);
+        
+        bool isFrustrated = false;
+        var struggleKeywords = new[] { "understand", "not clear", "mean", "help", "confused", "no use" };
+        int struggleCount = history.Count(h => h.Role == "user" && struggleKeywords.Any(k => h.Content.Contains(k, StringComparison.OrdinalIgnoreCase)));
+        bool currentIsStruggle = struggleKeywords.Any(k => question.Contains(k, StringComparison.OrdinalIgnoreCase));
+
+        // Trigger only if history has >= 3 struggles AND the current one is also a struggle (total > 3)
+        if (currentIsStruggle && struggleCount > 2)
+        {
+             Console.WriteLine($"[HYBRID] Frustration Detected! History: {struggleCount} + Current");
+             isFrustrated = true;
+        }
+
         if (history.Any())
         {
             context.AppendLine("CONVERSATION CONTEXT:");
-            foreach (var h in history)
+            foreach (var h in history.TakeLast(5)) // Only show last 5 in context to save tokens
                 context.AppendLine($"{h.Role}: {h.Content}");
         }
 
@@ -60,23 +74,28 @@ public class HybridContextService
                  Console.WriteLine("[HYBRID] Found previous ANSWER. Using it as context.");
                  context.AppendLine("\nUSER REQUESTS EXPLANATION OF:");
                  context.AppendLine(lastAnswer.Content);
-                 return context.ToString(); // Return immediately, skip RAG
+                 return new HybridContextResult(context.ToString(), false, isFrustrated);
             }
         }
 
         // 3️⃣ Policy (Vector RAG)
-        // Logic: Use RAG if it's NOT a follow-up OR if it IS a follow-up but has a new medical concept
-        // Also skip RAG for very short greeting-like messages to reduce noise
         if (question.Length > 5 && 
             (!isFollowUp || (isFollowUp && hasNewConcept)) && 
             (intent == IntentType.PolicyInfo || intent == IntentType.ClaimProcess))
         {
-            Console.WriteLine("[HYBRID] Using VECTOR RAG (policy)");
-            var policy = await _rag.GetSemanticContext(question);
-            if (!string.IsNullOrWhiteSpace(policy))
+            Console.WriteLine("[HYBRID] Using VECTOR RAG (policy) - Checking Confidence");
+            var result = await _rag.GetDetailedContext(question);
+            
+            if (result.Found)
             {
                 context.AppendLine("\nPOLICY CONTEXT:");
-                context.AppendLine(policy);
+                context.AppendLine(result.Context);
+            }
+            else
+            {
+                // RAG was attempted but nothing found -> Low Confidence
+                Console.WriteLine("[HYBRID] Low Confidence: No policy match found.");
+                isLowConfidence = true;
             }
         }
         else if (isFollowUp)
@@ -84,7 +103,7 @@ public class HybridContextService
              Console.WriteLine("[HYBRID] Follow-up detected. Skipping RAG.");
         }
 
-        return context.ToString();
+        return new HybridContextResult(context.ToString(), isLowConfidence, isFrustrated);
     }
 
     private bool IsFollowUp(string question)
@@ -112,3 +131,5 @@ public class HybridContextService
         return keywords.Any(k => lower.Contains(k));
     }
 }
+
+public record HybridContextResult(string ContextString, bool IsLowConfidence, bool IsFrustrated);
