@@ -1,5 +1,8 @@
+namespace HealthBot.Api;
+
 using System.Text;
 using HealthBot.Api.Models;
+using System.Linq;
 
 public class HybridContextService
 {
@@ -22,7 +25,7 @@ public class HybridContextService
         var context = new StringBuilder();
 
         // 1️⃣ Conversation context
-        var history = await _memory.GetLastMessages(sessionId, 5);
+        var history = await _memory.GetLastMessagesAsync(sessionId, 5);
         if (history.Any())
         {
             context.AppendLine("CONVERSATION CONTEXT:");
