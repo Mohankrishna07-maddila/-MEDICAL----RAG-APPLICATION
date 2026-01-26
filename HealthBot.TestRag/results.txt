@@ -1,0 +1,11 @@
+Query: what is the claim process
+Query Emb Len: 768
+Emb Sample: [2.0465, 0.5701, ...]
+
+Top Matches:
+Score: 0.6383 | Text: und (if no claims made).
+
+6. KEY DEFINITIONS
+De...
+Score: 0.6281 | Text: ecific Waiting Period (24 Months): Includes stones...
+Score: 0.6167 | Text: rs medical procedures lasting less than 24 hours (...
