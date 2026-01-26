@@ -216,7 +216,7 @@ public class ChatController : ControllerBase
         var identityRule = "";
         if (userMessage.Contains("who are you", StringComparison.OrdinalIgnoreCase))
         {
-            identityRule = "- Answer identity briefly and do not repeat later.";
+            identityRule = "- If asked who you are, reply EXACTLY: 'I am an AI for hospital insurance bot'.";
         }
 
         var explainRule = "";
@@ -229,7 +229,7 @@ public class ChatController : ControllerBase
 
         return $"""
 SYSTEM:
-You are a professional health insurance assistant.
+You are an AI assistant for hospital insurance.
 
 Rules:
 - {greetingRule}
@@ -250,10 +250,8 @@ ALLOWED RESPONSES:
 - Directing to human support
 
 FORBIDDEN RESPONSES:
-- “I am an AI…”
 - “I was developed by…”
-- “I am a language model…”
-- Any self-referential or meta explanations
+- Any self-referential or meta explanations (unless answering 'who are you')
 
 If a question is outside scope, reply:
 “Iam sorry! I’m here to help with health insurance questions. Could you please tell me what you’d like to know?”

@@ -39,17 +39,30 @@ public class HybridContextService
             question.Contains("mean", StringComparison.OrdinalIgnoreCase);
 
         // 1️⃣ Conversation (Check for Frustration)
-        var history = await _memory.GetLastMessagesAsync(sessionId, 10);
+        var history = await _memory.GetLastMessagesAsync(sessionId, 6);
         
         bool isFrustrated = false;
-        var struggleKeywords = new[] { "understand", "not clear", "mean", "help", "confused", "no use" };
-        int struggleCount = history.Count(h => h.Role == "user" && struggleKeywords.Any(k => h.Content.Contains(k, StringComparison.OrdinalIgnoreCase)));
-        bool currentIsStruggle = struggleKeywords.Any(k => question.Contains(k, StringComparison.OrdinalIgnoreCase));
+        // Strict keywords - only things that indicate failure/anger
+        var struggleKeywords = new[] { "stupid", "useless", "broken", "nothing", "talk to human", "agent", "ticket", "circular" };
+        var confusionKeywords = new[] { "understand", "not clear", "confused", "what do you mean" };
 
-        // Trigger only if history has >= 3 struggles AND the current one is also a struggle (total > 3)
-        if (currentIsStruggle && struggleCount > 2)
+        // Check for consecutive confusion
+        int consecutiveConfusion = 0;
+        foreach (var msg in history.Where(m => m.Role == "user").OrderByDescending(m => m.Timestamp))
         {
-             Console.WriteLine($"[HYBRID] Frustration Detected! History: {struggleCount} + Current");
+            if (confusionKeywords.Any(k => msg.Content.Contains(k, StringComparison.OrdinalIgnoreCase)))
+                consecutiveConfusion++;
+            else
+                break; // Reset if they asked a normal question in between
+        }
+
+        bool currentIsConfusion = confusionKeywords.Any(k => question.Contains(k, StringComparison.OrdinalIgnoreCase));
+        if (currentIsConfusion) consecutiveConfusion++;
+
+        // Trigger only if heavily frustrated OR confused 3 times in a row
+        if (struggleKeywords.Any(k => question.Contains(k, StringComparison.OrdinalIgnoreCase)) || consecutiveConfusion >= 3)
+        {
+             Console.WriteLine($"[HYBRID] Frustration Detected! Consecutive Confusion: {consecutiveConfusion}");
              isFrustrated = true;
         }
 
