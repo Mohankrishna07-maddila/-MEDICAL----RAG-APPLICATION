@@ -79,12 +79,15 @@ public class HybridContextService
         }
 
         // 3️⃣ Policy (Vector RAG)
+        double confidence = 1.0; // Default for non-RAG
+        
         if (question.Length > 5 && 
             (!isFollowUp || (isFollowUp && hasNewConcept)) && 
             (intent == IntentType.PolicyInfo || intent == IntentType.ClaimProcess))
         {
             Console.WriteLine("[HYBRID] Using VECTOR RAG (policy) - Checking Confidence");
             var result = await _rag.GetDetailedContext(question);
+            confidence = result.Confidence;
             
             if (result.Found)
             {
@@ -96,6 +99,7 @@ public class HybridContextService
                 // RAG was attempted but nothing found -> Low Confidence
                 Console.WriteLine("[HYBRID] Low Confidence: No policy match found.");
                 isLowConfidence = true;
+                confidence = 0.0;
             }
         }
         else if (isFollowUp)
@@ -103,7 +107,7 @@ public class HybridContextService
              Console.WriteLine("[HYBRID] Follow-up detected. Skipping RAG.");
         }
 
-        return new HybridContextResult(context.ToString(), isLowConfidence, isFrustrated);
+        return new HybridContextResult(context.ToString(), isLowConfidence, isFrustrated, confidence);
     }
 
     private bool IsFollowUp(string question)
@@ -132,4 +136,4 @@ public class HybridContextService
     }
 }
 
-public record HybridContextResult(string ContextString, bool IsLowConfidence, bool IsFrustrated);
+public record HybridContextResult(string ContextString, bool IsLowConfidence, bool IsFrustrated, double Confidence = 0.0);

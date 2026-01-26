@@ -157,7 +157,7 @@ If not, rewrite before answering.
 
     public async Task<string> GetSemanticContext(string question) => await GetContext(question);
 
-    public async Task<(string Context, bool Found)> GetDetailedContext(string question)
+    public async Task<(string Context, bool Found, double Confidence)> GetDetailedContext(string question)
     {
         var qEmb = await _embedder.EmbedAsync("search_query: " + question);
 
@@ -169,9 +169,10 @@ If not, rewrite before answering.
             .ToList();
 
         if (top.Count == 0)
-            return (string.Empty, false);
+            return (string.Empty, false, 0.0);
 
-        return (string.Join("\n", top.Select(v => v.Text)), true);
+        var maxScore = top.First().Score;
+        return (string.Join("\n", top.Select(v => v.Text)), true, maxScore);
     }
 
     float Cosine(float[] a, float[] b)

@@ -163,9 +163,13 @@ public class ChatController : ControllerBase
         var answer = await _ai.GenerateAsync(prompt);
 
         // 3. Save & Return
-        await _memory.AddMessageAsync(request.SessionId, "user", request.Message, "QUESTION", "General");
-        await _memory.AddMessageAsync(request.SessionId, "assistant", answer, "ANSWER", "General");
-
+        // Decide source based on context usage
+        var source = hybridContext.IsLowConfidence ? "LLM" : "VECTOR_RAG";
+        var conf = hybridContext.Confidence;
+        
+        await _memory.AddMessageAsync(request.SessionId, "user", request.Message, "QUESTION", "General", "USER");
+        await _memory.AddMessageAsync(request.SessionId, "assistant", answer, "ANSWER", "General", source, conf);
+        
         return Ok(new
         {
             Intent = "General",
@@ -196,8 +200,11 @@ public class ChatController : ControllerBase
             fullResponse.Append(token);
         }
 
-        await _memory.AddMessageAsync(req.SessionId, "user", req.Message, "QUESTION", "General");
-        await _memory.AddMessageAsync(req.SessionId, "assistant", fullResponse.ToString(), "ANSWER", "General");
+        var source = hybridContext.IsLowConfidence ? "LLM" : "VECTOR_RAG";
+        var conf = hybridContext.Confidence;
+
+        await _memory.AddMessageAsync(req.SessionId, "user", req.Message, "QUESTION", "General", "USER");
+        await _memory.AddMessageAsync(req.SessionId, "assistant", fullResponse.ToString(), "ANSWER", "General", source, conf);
     }
 
     private string BuildSystemPrompt(string context, string userMessage, bool isFirstMessage)
