@@ -122,8 +122,12 @@
             var response = await Http.PostAsJsonAsync("/chat", new { sessionId, message = userText });
             response.EnsureSuccessStatusCode();
 
-            // 4. Deserialize
-            var result = await response.Content.ReadFromJsonAsync<ChatResponse>();
+            // 4. Deserialize with Case Insensitivity
+            var options = new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+            var result = await response.Content.ReadFromJsonAsync<ChatResponse>(options);
             
             // 5. Update UI
             if (result != null)

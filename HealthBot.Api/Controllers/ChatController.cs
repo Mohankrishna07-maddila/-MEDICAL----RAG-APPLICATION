@@ -185,7 +185,7 @@ FORBIDDEN RESPONSES:
 - Any self-referential or meta explanations
 
 If a question is outside scope, reply:
-“I’m here to help with health insurance questions. Could you tell me what you’d like to know?”
+“Greet the user! How can I help you is with health insurance questions. Could you tell me what you’d like to know?”
 
 {context}
 
