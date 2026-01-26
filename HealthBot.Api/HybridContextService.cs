@@ -33,7 +33,9 @@ public class HybridContextService
         var isFollowUpExplain = 
             question.Contains("explain", StringComparison.OrdinalIgnoreCase) ||
             question.Contains("before", StringComparison.OrdinalIgnoreCase) ||
-            question.Contains("again", StringComparison.OrdinalIgnoreCase);
+            question.Contains("again", StringComparison.OrdinalIgnoreCase) ||
+            question.Contains("understand", StringComparison.OrdinalIgnoreCase) ||
+            question.Contains("mean", StringComparison.OrdinalIgnoreCase);
 
         // 1️⃣ Conversation
         var history = await _memory.GetLastMessagesAsync(sessionId, 5);
@@ -92,7 +94,10 @@ public class HybridContextService
             || q.Contains("again")
             || q.Contains("previous")
             || q.Contains("earlier")
-            || q.Contains("you said");
+            || q.Contains("you said")
+            || q.Contains("understand")
+            || q.Contains("mean")
+            || q.Contains("clarify");
     }
 
     private bool ContainsNewMedicalTerm(string q)

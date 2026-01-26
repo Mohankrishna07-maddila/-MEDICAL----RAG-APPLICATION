@@ -102,6 +102,22 @@ public class DynamoTicketRepository
         });
     }
 
+    public async Task<SupportTicket?> GetByTicketIdAsync(string ticketId)
+    {
+        var request = new QueryRequest
+        {
+            TableName = TableName,
+            KeyConditionExpression = "TicketId = :tid",
+            ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+            {
+                [":tid"] = new AttributeValue { S = ticketId }
+            }
+        };
+
+        var response = await _client.QueryAsync(request);
+        return response.Items.Count == 0 ? null : Map(response.Items[0]);
+    }
+
     private static SupportTicket Map(Dictionary<string, AttributeValue> item)
     {
         return new SupportTicket

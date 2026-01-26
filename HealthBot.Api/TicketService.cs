@@ -55,4 +55,6 @@ public class TicketService
         long createdAt,
         string status)
         => _repo.UpdateStatusAsync(ticketId, createdAt, status);
+    public Task<SupportTicket?> GetByTicketId(string ticketId)
+        => _repo.GetByTicketIdAsync(ticketId);
 }

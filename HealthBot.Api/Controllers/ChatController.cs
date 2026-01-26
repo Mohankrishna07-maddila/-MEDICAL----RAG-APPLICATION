@@ -43,7 +43,7 @@ public class ChatController : ControllerBase
             request.Message.Trim().Equals("hello", StringComparison.OrdinalIgnoreCase) ||
             request.Message.Trim().Equals("hey", StringComparison.OrdinalIgnoreCase);
 
-        if (isFirstMessage && isGreeting)
+        if (isGreeting)
         {
             /*
              * We must save this interaction so that subsequent messages are NOT considered "first message".
@@ -59,13 +59,34 @@ public class ChatController : ControllerBase
                 Answer = greetingAnswer
             });
         }
+        
+        // 2a. Ticket Status Check (Regex)
+        var ticketMatch = System.Text.RegularExpressions.Regex.Match(request.Message, @"(TKT-[A-Za-z0-9]+)");
+        if (ticketMatch.Success)
+        {
+            var tid = ticketMatch.Groups[1].Value;
+            var ticket = await _ticketService.GetByTicketId(tid);
+            if (ticket != null)
+            {
+                return Ok(new
+                {
+                    Intent = "TicketStatus",
+                    Answer = $"I found ticket {ticket.TicketId}. Status: {ticket.Status}. Created: {DateTimeOffset.FromUnixTimeSeconds(ticket.CreatedAt).ToString("g")}.",
+                    TicketId = ticket.TicketId
+                });
+            }
+        }
 
         // 3. HARD OVERRIDE: Explicit Agent Request
         bool explicitAgentRequest = 
             request.Message.Contains("connect to agent", StringComparison.OrdinalIgnoreCase) ||
             request.Message.Contains("talk to agent", StringComparison.OrdinalIgnoreCase) ||
-            request.Message.Contains("human", StringComparison.OrdinalIgnoreCase) ||
-            request.Message.Contains("support", StringComparison.OrdinalIgnoreCase);
+            request.Message.Contains("talk to a human", StringComparison.OrdinalIgnoreCase) ||
+            request.Message.Contains("talk to human", StringComparison.OrdinalIgnoreCase) ||
+            request.Message.Contains("speak to human", StringComparison.OrdinalIgnoreCase) ||
+            request.Message.Contains("real person", StringComparison.OrdinalIgnoreCase) ||
+            request.Message.Contains("contact support", StringComparison.OrdinalIgnoreCase) ||
+            request.Message.Contains("customer support", StringComparison.OrdinalIgnoreCase);
 
         if (explicitAgentRequest)
         {
@@ -185,7 +206,7 @@ FORBIDDEN RESPONSES:
 - Any self-referential or meta explanations
 
 If a question is outside scope, reply:
-“Greet the user! How can I help you is with health insurance questions. Could you tell me what you’d like to know?”
+“Iam sorry! I’m here to help with health insurance questions. Could you please tell me what you’d like to know?”
 
 {context}
 

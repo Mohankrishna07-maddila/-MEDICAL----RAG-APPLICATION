@@ -63,7 +63,7 @@ FORBIDDEN RESPONSES:
 - Any self-referential or meta explanations
 
 If a question is outside scope, reply:
-“Greet the user! How can I help you is with health insurance questions. Could you tell me what you’d like to know?”
+“Iam sorry! I’m here to help with health insurance questions. Could you please tell me what you’d like to know?”
 
 CONVERSATION SO FAR:
 {conversation}
@@ -119,7 +119,7 @@ FORBIDDEN RESPONSES:
 - Any self-referential or meta explanations
 
 If a question is outside scope, reply:
-“Hello! I’m here to help with health insurance questions. Could you tell me what you’d like to know?”
+“Hello! I’m here to help with health insurance questions. Could you please tell me what you’d like to know?”
 
 CONVERSATION SO FAR:
 {conversation}
