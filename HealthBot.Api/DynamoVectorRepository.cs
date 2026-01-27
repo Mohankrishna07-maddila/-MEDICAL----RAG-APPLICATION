@@ -32,6 +32,7 @@ public class DynamoVectorRepository
 
             await _client.PutItemAsync(TableName, item);
         }
+        Console.WriteLine($"[Dynamo] Successfully saved {vectors.Count} vectors.");
     }
 
     public async Task<List<VectorChunk>> GetAllVectorsAsync()
@@ -57,6 +58,41 @@ public class DynamoVectorRepository
         catch (ResourceNotFoundException)
         {
             // Table doesn't exist or is empty
+            return new List<VectorChunk>();
+        }
+    }
+    public async Task<List<VectorChunk>> GetVectorsBySessionAsync(string sessionId)
+    {
+        try
+        {
+            var request = new ScanRequest 
+            { 
+                TableName = TableName,
+                FilterExpression = "SessionId = :sid OR SessionId = :global OR SessionId = :legacy_global",
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                {
+                    { ":sid", new AttributeValue { S = sessionId } },
+                    { ":global", new AttributeValue { S = "GLOBAL" } },
+                    { ":legacy_global", new AttributeValue { S = "GLOBAL_POLICY" } }
+                }
+            };
+            
+            var response = await _client.ScanAsync(request);
+
+            var list = new List<VectorChunk>();
+            foreach (var item in response.Items)
+            {
+                list.Add(new VectorChunk
+                {
+                    Text = item["Text"].S,
+                    SessionId = item.ContainsKey("SessionId") ? item["SessionId"].S : "GLOBAL",
+                    Embedding = JsonSerializer.Deserialize<float[]>(item["EmbeddingJson"].S) ?? []
+                });
+            }
+            return list;
+        }
+        catch (ResourceNotFoundException)
+        {
             return new List<VectorChunk>();
         }
     }

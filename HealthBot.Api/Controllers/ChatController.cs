@@ -301,6 +301,14 @@ INSTRUCTIONS:
         return Ok(cleanView);
     }
 
+    [HttpPost("policy/{sessionId}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> UploadPolicy(string sessionId, [FromBody] PolicyUploadRequest req)
+    {
+        await _policyRag.AddUserPolicy(sessionId, req.Text);
+        return Ok(new { Message = $"Policy added for session {sessionId}" });
+    }
+
     [HttpGet("history/{sessionId}")]
     public async Task<IActionResult> GetHistory(string sessionId)
     {
@@ -310,3 +318,4 @@ INSTRUCTIONS:
 }
 
 public record ChatRequest(string SessionId, string Message);
+public record PolicyUploadRequest(string Text);

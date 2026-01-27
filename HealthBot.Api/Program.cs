@@ -1,5 +1,6 @@
 using HealthBot.Api;
 using Amazon.DynamoDBv2;
+using Amazon.S3;
 using HealthBot.Api.Services;
 using Amazon.Extensions.NETCore.Setup;
 using Microsoft.Extensions.DependencyInjection;
@@ -49,6 +50,8 @@ builder.Services.AddAuthorization();
 builder.Services.AddSingleton<IAIService, LocalLlmService>();
 builder.Services.AddSingleton<DynamoConversationMemory>();
 builder.Services.AddAWSService<IAmazonDynamoDB>();
+builder.Services.AddAWSService<IAmazonS3>(); // Add S3
+builder.Services.AddSingleton<S3DocumentLoader>();
 builder.Services.AddSingleton<DynamoTicketRepository>();
 builder.Services.AddSingleton<TicketService>();
 builder.Services.AddSingleton<EmbeddingService>();

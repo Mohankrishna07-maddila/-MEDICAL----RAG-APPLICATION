@@ -31,12 +31,13 @@ public class HybridContextService
         var isFollowUp = IsFollowUp(question);
         var hasNewConcept = ContainsNewMedicalTerm(question);
         
+        // Stricter check: "Explain" alone is NOT enough. It must be "Explain that", "Explain again", etc.
         var isFollowUpExplain = 
-            question.Contains("explain", StringComparison.OrdinalIgnoreCase) ||
-            question.Contains("before", StringComparison.OrdinalIgnoreCase) ||
-            question.Contains("again", StringComparison.OrdinalIgnoreCase) ||
-            question.Contains("understand", StringComparison.OrdinalIgnoreCase) ||
-            question.Contains("mean", StringComparison.OrdinalIgnoreCase);
+            question.Contains("explain again", StringComparison.OrdinalIgnoreCase) ||
+            question.Contains("explain that", StringComparison.OrdinalIgnoreCase) ||
+            question.Contains("explain it", StringComparison.OrdinalIgnoreCase) ||
+            question.Contains("say that again", StringComparison.OrdinalIgnoreCase) ||
+            question.Contains("what do you mean", StringComparison.OrdinalIgnoreCase);
 
         // 1️⃣ Conversation (Check for Frustration)
         var history = await _memory.GetLastMessagesAsync(sessionId, 6);
@@ -99,7 +100,7 @@ public class HybridContextService
             (intent == IntentType.PolicyInfo || intent == IntentType.ClaimProcess))
         {
             Console.WriteLine("[HYBRID] Using VECTOR RAG (policy) - Checking Confidence");
-            var result = await _rag.GetDetailedContext(question);
+            var result = await _rag.GetDetailedContext(sessionId, question);
             confidence = result.Confidence;
             
             if (result.Found)
