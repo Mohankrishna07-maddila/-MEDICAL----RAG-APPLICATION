@@ -283,6 +283,24 @@ INSTRUCTIONS:
         }
     }
 
+    [HttpGet("vectors")]
+    [AllowAnonymous]
+    public IActionResult GetVectors()
+    {
+        var vectors = _policyRag.GetAllVectors();
+        // Return a simplified view to avoid crashing browser with 768 floats x N chunks
+        var cleanView = vectors.Select((v, i) => new 
+        { 
+            Id = i, 
+            SessionId = v.SessionId,
+            Preview = v.Text.Length > 50 ? v.Text.Substring(0, 50) + "..." : v.Text, 
+            VectorLength = v.Embedding.Length,
+            VectorSample = v.Embedding.Take(5).ToArray() 
+        });
+        
+        return Ok(cleanView);
+    }
+
     [HttpGet("history/{sessionId}")]
     public async Task<IActionResult> GetHistory(string sessionId)
     {

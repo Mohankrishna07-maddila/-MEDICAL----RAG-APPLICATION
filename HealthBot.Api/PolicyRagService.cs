@@ -26,6 +26,9 @@ public class PolicyRagService
         }
     }
 
+
+    public List<VectorChunk> GetAllVectors() => _vectors;
+
     public async Task<string> Answer(string question, List<ChatMessage> history)
     {
         var conversation = string.Join("\n",
