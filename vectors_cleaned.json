@@ -1,0 +1,174 @@
+﻿{
+    "value":  [
+                  {
+                      "id":  0,
+                      "sessionId":  "GLOBAL_POLICY",
+                      "preview":  "Source: faq.txt\n---\nHealthBot Insurance - Frequent...",
+                      "vectorLength":  768,
+                      "vectorSample":  [
+                                           0.7273185,
+                                           0.96776587,
+                                           -3.8239346,
+                                           -0.50418216,
+                                           1.5584946
+                                       ]
+                  },
+                  {
+                      "id":  1,
+                      "sessionId":  "user-a",
+                      "preview":  "My policy limit is $500 for dental.",
+                      "vectorLength":  768,
+                      "vectorSample":  [
+                                           1.329786,
+                                           2.18955,
+                                           -3.1716278,
+                                           -0.1107131,
+                                           -0.122690335
+                                       ]
+                  },
+                  {
+                      "id":  2,
+                      "sessionId":  "GLOBAL_POLICY",
+                      "preview":  "Source: policy_gold.txt\n---\nHealthBot Insurance - ...",
+                      "vectorLength":  768,
+                      "vectorSample":  [
+                                           0.11313665,
+                                           1.3608595,
+                                           -3.9489162,
+                                           -0.1632838,
+                                           0.1012573
+                                       ]
+                  },
+                  {
+                      "id":  3,
+                      "sessionId":  "GLOBAL_POLICY",
+                      "preview":  "rs medical procedures lasting less than 24 hours (...",
+                      "vectorLength":  768,
+                      "vectorSample":  [
+                                           0.77583534,
+                                           1.3043679,
+                                           -4.0893636,
+                                           -0.26466987,
+                                           -0.77139246
+                                       ]
+                  },
+                  {
+                      "id":  4,
+                      "sessionId":  "GLOBAL_POLICY",
+                      "preview":  "ecific Waiting Period (24 Months): Includes stones...",
+                      "vectorLength":  768,
+                      "vectorSample":  [
+                                           0.93695897,
+                                           0.9710078,
+                                           -4.0257287,
+                                           -1.0215262,
+                                           0.53246903
+                                       ]
+                  },
+                  {
+                      "id":  5,
+                      "sessionId":  "GLOBAL_POLICY",
+                      "preview":  "Source: policy.txt\n---\nrs medical procedures lasti...",
+                      "vectorLength":  768,
+                      "vectorSample":  [
+                                           0.77583534,
+                                           1.3043679,
+                                           -4.0893636,
+                                           -0.26466987,
+                                           -0.77139246
+                                       ]
+                  },
+                  {
+                      "id":  6,
+                      "sessionId":  "GLOBAL_POLICY",
+                      "preview":  "Source: policy.txt\n---\nund (if no claims made).\r\n\r...",
+                      "vectorLength":  768,
+                      "vectorSample":  [
+                                           1.262399,
+                                           0.06242573,
+                                           -4.69622,
+                                           -0.28006086,
+                                           -0.0096112145
+                                       ]
+                  },
+                  {
+                      "id":  7,
+                      "sessionId":  "GLOBAL_POLICY",
+                      "preview":  "Source: policy.txt\n---\necific Waiting Period (24 M...",
+                      "vectorLength":  768,
+                      "vectorSample":  [
+                                           0.93695897,
+                                           0.9710078,
+                                           -4.0257287,
+                                           -1.0215262,
+                                           0.53246903
+                                       ]
+                  },
+                  {
+                      "id":  8,
+                      "sessionId":  "GLOBAL_POLICY",
+                      "preview":  "und (if no claims made).\r\n\r\n6. KEY DEFINITIONS\r\nDe...",
+                      "vectorLength":  768,
+                      "vectorSample":  [
+                                           1.262399,
+                                           0.06242573,
+                                           -4.69622,
+                                           -0.28006086,
+                                           -0.0096112145
+                                       ]
+                  },
+                  {
+                      "id":  9,
+                      "sessionId":  "GLOBAL_POLICY",
+                      "preview":  "Source: policy_silver.txt\n---\nHealthBot Insurance ...",
+                      "vectorLength":  768,
+                      "vectorSample":  [
+                                           0.41031286,
+                                           1.5826488,
+                                           -3.9502623,
+                                           -0.39922553,
+                                           -0.036249988
+                                       ]
+                  },
+                  {
+                      "id":  10,
+                      "sessionId":  "user-b",
+                      "preview":  "My policy limit is $5000 for dental.",
+                      "vectorLength":  768,
+                      "vectorSample":  [
+                                           1.2780265,
+                                           2.2225935,
+                                           -3.1483154,
+                                           -0.08210102,
+                                           -0.09927314
+                                       ]
+                  },
+                  {
+                      "id":  11,
+                      "sessionId":  "GLOBAL",
+                      "preview":  "Source: HELLO IAM MANOJ.txt\n---\nHELLO IAM MANOJ ",
+                      "vectorLength":  768,
+                      "vectorSample":  [
+                                           -0.14899258,
+                                           -0.020485558,
+                                           -2.7601528,
+                                           -0.005323326,
+                                           1.2743984
+                                       ]
+                  },
+                  {
+                      "id":  12,
+                      "sessionId":  "GLOBAL_POLICY",
+                      "preview":  "Source: claim_process.txt\n---\nTo claim your insura...",
+                      "vectorLength":  768,
+                      "vectorSample":  [
+                                           0.8511558,
+                                           0.14940529,
+                                           -3.7959661,
+                                           0.19824402,
+                                           1.3816963
+                                       ]
+                  }
+              ],
+    "Count":  13
+}

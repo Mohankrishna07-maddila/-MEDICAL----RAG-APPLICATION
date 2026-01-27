@@ -34,6 +34,18 @@ public class PolicyRagService
         _globalVectors = await _repo.GetAllVectorsAsync();
         Console.WriteLine($"[RAG] Loaded {_globalVectors.Count} vectors from DynamoDB.");
 
+        // CLEANUP: Remove Internal Docs from Memory
+        int removedCount = _globalVectors.RemoveAll(v => 
+            v.Text.Contains("sop.txt", StringComparison.OrdinalIgnoreCase) || 
+            v.Text.Contains("internal", StringComparison.OrdinalIgnoreCase)
+        );
+
+        if (removedCount > 0)
+        {
+            Console.WriteLine($"[RAG] Removed {removedCount} INTERNAL vectors from memory.");
+            // Ideally we should delete from DB too, but memory filter is enough for now to stop the response.
+        }
+
         // 2. Sync with S3 (Check for new files)
         try 
         {
@@ -48,6 +60,14 @@ public class PolicyRagService
                 // We assume the format: "Source: {fileKey}\n---"
                 bool alreadyIndexed = _globalVectors.Any(v => v.Text.StartsWith($"Source: {fileKey}"));
                 
+                // SKIPPING INTERNAL DOCS
+                if (fileKey.Contains("sop", StringComparison.OrdinalIgnoreCase) || 
+                    fileKey.Contains("internal", StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.WriteLine($"[RAG] Skipping INTERNAL file: {fileKey}");
+                    continue;
+                }
+
                 if (alreadyIndexed)
                 {
                     // Console.WriteLine($"[RAG] Skipping {fileKey} (Already indexed)");
@@ -124,7 +144,9 @@ FORBIDDEN RESPONSES:
 - “I am an AI…”
 - “I was developed by…”
 - “I am a language model…”
+- “I am a language model…”
 - Any self-referential or meta explanations
+- **INTERNAL SOPs**: Do NOT share "Step 1: Check Policy Status" or claim verification checklists intended for employees. Only explain the process from the USER'S perspective (e.g. "Submit your documents via the app").
 
 If a question is outside scope, reply:
 “Iam sorry! I’m here to help with health insurance questions. Could you please tell me what you’d like to know?”
