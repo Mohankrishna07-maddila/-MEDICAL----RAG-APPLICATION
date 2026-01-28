@@ -52,6 +52,59 @@ public class AdminController : ControllerBase
         return Ok(new { Message = "RAG System Synced & Reset Successfully" });
     }
 
+    [HttpPost("sync-rag/incremental")]
+    [AllowAnonymous]
+    public async Task<IActionResult> IncrementalSync()
+    {
+        var result = await _rag.IncrementalSyncAsync();
+        
+        return Ok(new
+        {
+            Message = result.FilesProcessed > 0 
+                ? $"✅ Synced {result.FilesProcessed} files, {result.ChunksAdded} chunks in {result.DurationSeconds:F2}s"
+                : "✅ No new files to sync",
+            FilesProcessed = result.FilesProcessed,
+            ChunksAdded = result.ChunksAdded,
+            DurationSeconds = result.DurationSeconds,
+            ProcessedFiles = result.ProcessedFiles
+        });
+    }
+
+    [HttpPost("sync-rag/full")]
+    [AllowAnonymous]
+    public async Task<IActionResult> FullSync()
+    {
+        // Upload local files to S3 first
+        var sourceDir = Path.Combine(Directory.GetCurrentDirectory(), "source");
+        if (Directory.Exists(sourceDir))
+        {
+            var files = Directory.GetFiles(sourceDir, "*.txt", SearchOption.AllDirectories);
+            Console.WriteLine($"[Admin] Found {files.Length} files to upload");
+
+            await _s3.DeleteAllFilesAsync();
+
+            foreach (var file in files)
+            {
+                var content = await System.IO.File.ReadAllTextAsync(file);
+                
+                // Preserve folder structure in S3 key
+                var relativePath = Path.GetRelativePath(sourceDir, file).Replace("\\", "/");
+                await _s3.UploadFileAsync(relativePath, content);
+            }
+        }
+
+        await _rag.ResetAndIngestFromS3Async();
+        return Ok(new { Message = "✅ Full sync complete" });
+    }
+
+    [HttpGet("sync-rag/status")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetSyncStatus()
+    {
+        var status = await _rag.GetSyncStatusAsync();
+        return Ok(status);
+    }
+
     [HttpGet("diagnostic")]
     [AllowAnonymous]
     public async Task<IActionResult> GetDiagnostic()

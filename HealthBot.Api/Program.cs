@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Amazon.DynamoDBv2.DataModel;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,6 +53,14 @@ builder.Services.AddSingleton<IAIService, LocalLlmService>();
 builder.Services.AddSingleton<DynamoConversationMemory>();
 builder.Services.AddAWSService<IAmazonDynamoDB>();
 builder.Services.AddAWSService<IAmazonS3>(); // Add S3
+
+// Add DynamoDBContext for sync state tracking
+builder.Services.AddSingleton<DynamoDBContext>(sp =>
+{
+    var dynamoDb = sp.GetRequiredService<IAmazonDynamoDB>();
+    return new DynamoDBContext(dynamoDb);
+});
+
 builder.Services.AddSingleton<S3DocumentLoader>();
 builder.Services.AddSingleton<DynamoTicketRepository>();
 builder.Services.AddSingleton<TicketService>();
@@ -61,6 +70,9 @@ builder.Services.AddSingleton<MetadataIndexRepository>(); // [NEW]
 builder.Services.AddSingleton<FakePolicySeeder>();        // [NEW]
 builder.Services.AddSingleton<PolicyRagService>();
 builder.Services.AddSingleton<HybridContextService>();
+
+// Add background service for automatic RAG syncing
+builder.Services.AddHostedService<RagSyncBackgroundService>();
 
 var app = builder.Build();
 

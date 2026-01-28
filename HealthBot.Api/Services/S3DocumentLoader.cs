@@ -60,6 +60,36 @@ public class S3DocumentLoader
             return new List<string>();
         }
     }
+
+    public async Task<List<Models.S3FileInfo>> ListDocumentsWithMetadata(string prefix = "")
+    {
+        try
+        {
+            var request = new ListObjectsV2Request
+            {
+                BucketName = _bucketName,
+                Prefix = prefix
+            };
+
+            var response = await _s3Client.ListObjectsV2Async(request);
+            
+            return response.S3Objects
+                .Where(o => o.Key.EndsWith(".txt"))
+                .Select(o => new Models.S3FileInfo
+                {
+                    Key = o.Key,
+                    LastModified = o.LastModified ?? DateTime.UtcNow,
+                    Size = o.Size ?? 0
+                })
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[S3] Error listing files with metadata: {ex.Message}");
+            return new List<Models.S3FileInfo>();
+        }
+    }
+
     public async Task DeleteAllFilesAsync()
     {
         try
