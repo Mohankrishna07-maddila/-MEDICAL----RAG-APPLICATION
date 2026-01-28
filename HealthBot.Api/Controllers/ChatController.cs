@@ -173,7 +173,8 @@ public class ChatController : ControllerBase
         return Ok(new
         {
             Intent = "General",
-            Answer = answer
+            Answer = answer,
+            Sources = hybridContext.Sources ?? new List<string>()
         });
     }
 

@@ -94,6 +94,7 @@ public class HybridContextService
 
         // 3️⃣ Policy (Vector RAG)
         double confidence = 1.0; // Default for non-RAG
+        List<string> sources = new List<string>();
         
         if (question.Length > 5 && 
             (!isFollowUp || (isFollowUp && hasNewConcept)) && 
@@ -102,6 +103,7 @@ public class HybridContextService
             Console.WriteLine("[HYBRID] Using VECTOR RAG (policy) - Checking Confidence");
             var result = await _rag.GetDetailedContext(sessionId, question);
             confidence = result.Confidence;
+            sources = result.Sources;
             
             if (result.Found)
             {
@@ -121,7 +123,7 @@ public class HybridContextService
              Console.WriteLine("[HYBRID] Follow-up detected. Skipping RAG.");
         }
 
-        return new HybridContextResult(context.ToString(), isLowConfidence, isFrustrated, confidence);
+        return new HybridContextResult(context.ToString(), isLowConfidence, isFrustrated, confidence, sources);
     }
 
     private bool IsFollowUp(string question)
@@ -150,4 +152,4 @@ public class HybridContextService
     }
 }
 
-public record HybridContextResult(string ContextString, bool IsLowConfidence, bool IsFrustrated, double Confidence = 0.0);
+public record HybridContextResult(string ContextString, bool IsLowConfidence, bool IsFrustrated, double Confidence = 0.0, List<string>? Sources = null);

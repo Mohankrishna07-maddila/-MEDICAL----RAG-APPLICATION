@@ -234,7 +234,7 @@ If not, rewrite before answering.
         }
     }
 
-    public async Task<(string Context, bool Found, double Confidence)> GetDetailedContext(string sessionId, string question)
+    public async Task<(string Context, bool Found, double Confidence, List<string> Sources)> GetDetailedContext(string sessionId, string question)
     {
         if (!_userCache.TryGetValue(sessionId, out var userVectors))
         {
@@ -251,10 +251,34 @@ If not, rewrite before answering.
             .ToList();
 
         if (top.Count == 0)
-            return (string.Empty, false, 0.0);
+            return (string.Empty, false, 0.0, new List<string>());
 
         var maxScore = top.First().Score;
-        return (string.Join("\n", top.Select(v => v.Text)), true, maxScore);
+        var context = string.Join("\n", top.Select(v => v.Text));
+        
+        // Extract Sources
+        var sources = top
+            .Select(v => ExtractSource(v.Text))
+            .Where(s => !string.IsNullOrEmpty(s))
+            .Distinct()
+            .ToList();
+
+        return (context, true, maxScore, sources);
+    }
+
+    private string ExtractSource(string text)
+    {
+        // text format: "Source: filename.txt\n---\n..."
+        try 
+        {
+            var firstLine = text.Split('\n').FirstOrDefault();
+            if (firstLine != null && firstLine.StartsWith("Source: "))
+            {
+                return firstLine.Substring("Source: ".Length).Trim();
+            }
+        }
+        catch { }
+        return "";
     }
 
     float Cosine(float[] a, float[] b)
