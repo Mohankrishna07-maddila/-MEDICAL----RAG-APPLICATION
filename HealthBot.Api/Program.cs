@@ -11,6 +11,7 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddMemoryCache(); // Add in-memory cache for performance
 
 builder.Services.AddCors(options =>
 {

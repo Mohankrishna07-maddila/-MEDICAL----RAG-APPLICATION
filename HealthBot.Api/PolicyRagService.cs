@@ -38,58 +38,79 @@ public class PolicyRagService
 
     private async Task InitializeAsync()
     {
-        Console.WriteLine("[RAG] Initializing Metadata-Driven System...");
+        // Auto-seeding disabled. Use ResetAndIngestFromS3Async via controller.
+        await Task.CompletedTask;
+    }
 
-        // 1. SEED FAKE DATA (If not already present? For now, we seed every time for demo but check DB first)
-        // A better check would be to see if "POL_GOLD" exists in Index.
-        var check = await _indexRepo.GetChunkIdsForTermAsync("policy_id:POL_GOLD");
-        if (check.Count == 0)
+    public async Task ClearAllDataAsync()
+    {
+        await _repo.DeleteAllVectorsAsync();
+        await _indexRepo.DeleteAllIndexesAsync();
+    }
+
+    public async Task ResetAndIngestFromS3Async()
+    {
+        Console.WriteLine("[RAG] Clearing existing data...");
+        await ClearAllDataAsync();
+
+        Console.WriteLine("[RAG] Fetching documents from S3...");
+        var files = await _s3.ListDocuments();
+        Console.WriteLine($"[RAG] Found {files.Count} files in S3.");
+        
+        var newVectors = new List<VectorChunk>();
+        var indexUpdates = new Dictionary<string, List<string>>();
+
+        foreach (var file in files)
         {
-            Console.WriteLine("[RAG] Seeding Fake Policy Data...");
-            var policies = _seeder.GeneratePolicies();
-            var newVectors = new List<VectorChunk>();
-            var indexUpdates = new Dictionary<string, List<string>>(); // term -> [chunkId1, chunkId2]
+             var content = await _s3.LoadContent(file);
+             if (string.IsNullOrWhiteSpace(content)) continue;
 
-            foreach (var (text, meta) in policies)
-            {
-                var chunks = Chunk(text);
-                foreach (var c in chunks)
-                {
-                    var emb = await _embedder.EmbedAsync("search_document: " + c);
-                    var chunkObj = new VectorChunk 
-                    { 
-                        Text = c, 
-                        Embedding = emb, 
-                        SessionId = "GLOBAL",
-                        Metadata = meta 
-                    };
-                    
-                    newVectors.Add(chunkObj);
+             var policyId = Path.GetFileNameWithoutExtension(file);
+             
+             // Smart Confidence Assignment based on document type
+             var confidence = DetermineConfidence(policyId, content);
+             
+             // Extract user_id from filename for user-specific filtering
+             var userId = ExtractUserIdFromFilename(policyId);
+             
+             var metadata = new Dictionary<string, string> 
+             {
+                 { "policy_id", policyId },
+                 { "user_id", userId },  // NEW: User-specific filter
+                 { "role", "customer" }, 
+                 { "source", "s3_import" },
+                 { "confidence", confidence.ToString("F2") }
+             };
 
-                    // Prepare Metadata Index updates
-                    foreach (var kvp in meta)
-                    {
-                        var term = $"{kvp.Key}:{kvp.Value}"; // e.g. "role:customer"
-                        if (!indexUpdates.ContainsKey(term)) indexUpdates[term] = new List<string>();
-                        indexUpdates[term].Add(chunkObj.Id);
-                    }
-                }
-            }
-
-            // Save Vectors
-            if (newVectors.Count > 0) await _repo.SaveVectorsAsync(newVectors);
-            
-            // Save Index
-            if (indexUpdates.Count > 0) await _indexRepo.AddIndexBatchAsync(indexUpdates);
-            
-            Console.WriteLine($"[RAG] Seeded {newVectors.Count} chunks and built Metadata Index.");
+             var chunks = Chunk(content);
+             foreach (var c in chunks)
+             {
+                 // Console.WriteLine($"Embedding chunk for {policyId}...");
+                 var emb = await _embedder.EmbedAsync("search_document: " + c);
+                 var chunkObj = new VectorChunk 
+                 { 
+                     Text = c, 
+                     Embedding = emb, 
+                     SessionId = "GLOBAL",
+                     Metadata = metadata 
+                 };
+                 newVectors.Add(chunkObj);
+                 
+                 foreach (var kvp in metadata)
+                 {
+                     var term = $"{kvp.Key}:{kvp.Value}";
+                     if (!indexUpdates.ContainsKey(term)) indexUpdates[term] = new List<string>();
+                     indexUpdates[term].Add(chunkObj.Id);
+                 }
+             }
         }
-        else
+
+        if (newVectors.Count > 0) 
         {
-             Console.WriteLine("[RAG] Fake Data already seeded.");
+            await _repo.SaveVectorsAsync(newVectors);
+            await _indexRepo.AddIndexBatchAsync(indexUpdates);
         }
-
-        // 2. We could also sync S3 here, but omitting for brevity as requested focus is on Metadata Architecture.
+        Console.WriteLine($"[RAG] Ingestion complete. {newVectors.Count} chunks indexed.");
     }
 
     public async Task<string> Answer(string sessionId, string question, List<ChatMessage> history)
@@ -133,18 +154,29 @@ public class PolicyRagService
         // Step 1: Embed Query
         var qEmb = await _embedder.EmbedAsync("search_query: " + question);
 
-        // Step 2: Metadata Filtering (The "Sandbox")
-        var filters = userFilters ?? new Dictionary<string, string> { { "role", "customer" } };
+        // Step 2: User-Specific Metadata Filtering
+        var userId = ExtractUserIdFromSession(sessionId);
+        Console.WriteLine($"[RAG] Session '{sessionId}' mapped to user_id: '{userId}'");
         
         HashSet<string> candidateIds = null;
 
-        foreach (var kvp in filters)
+        if (userId == "global")
         {
-            var term = $"{kvp.Key}:{kvp.Value}";
-            var termIds = await _indexRepo.GetChunkIdsForTermAsync(term);
+            // Demo/test mode: See all documents
+            var roleFilter = await _indexRepo.GetChunkIdsForTermAsync("role:customer");
+            candidateIds = roleFilter;
+            Console.WriteLine($"[RAG] Global session - showing all documents");
+        }
+        else
+        {
+            // User-specific mode: Show user's docs + global docs (OR logic)
+            var userDocs = await _indexRepo.GetChunkIdsForTermAsync($"user_id:{userId}");
+            var globalDocs = await _indexRepo.GetChunkIdsForTermAsync("user_id:global");
             
-            if (candidateIds == null) candidateIds = termIds; // First filter
-            else candidateIds.IntersectWith(termIds); // AND logic
+            candidateIds = new HashSet<string>(userDocs);
+            candidateIds.UnionWith(globalDocs); // OR logic: user docs + global docs
+            
+            Console.WriteLine($"[RAG] User-specific filter: {userDocs.Count} user docs + {globalDocs.Count} global docs = {candidateIds.Count} total");
         }
 
         if (candidateIds == null || candidateIds.Count == 0)
@@ -181,12 +213,92 @@ public class PolicyRagService
 
         if (ranked.Count == 0) return (string.Empty, false, 0, new List<string>());
 
+        Console.WriteLine($"\n[RAG] --------------------------------------------------");
+        Console.WriteLine($"[RAG] CITATION REPORT: Selected {ranked.Count} chunks");
+        foreach (var r in ranked)
+        {
+            var m = r.Item.Chunk.Metadata;
+            Console.WriteLine($"[RAG] >> Source: {m.GetValueOrDefault("policy_id", "Unknown")} (v{m.GetValueOrDefault("version", "?")})");
+            Console.WriteLine($"       Score: {r.FinalScore:F4} (Sim: {r.Item.SimScore:F4}, Conf: {m.GetValueOrDefault("confidence", "0.5")})");
+            Console.WriteLine($"       Snippet: {r.Item.Chunk.Text.Replace("\n", " ").Substring(0, Math.Min(60, r.Item.Chunk.Text.Length))}...");
+        }
+        Console.WriteLine($"[RAG] --------------------------------------------------\n");
+
         var finalContext = string.Join("\n\n", ranked.Select(r => 
             $"[Source: {r.Item.Chunk.Metadata.GetValueOrDefault("policy_id", "Unknown")}]: {r.Item.Chunk.Text}"));
             
         var distinctSources = ranked.Select(r => r.Item.Chunk.Metadata.GetValueOrDefault("policy_id", "Unknown")).Distinct().ToList();
 
         return (finalContext, true, ranked.First().FinalScore, distinctSources);
+    }
+
+    private string ExtractUserIdFromFilename(string filename)
+    {
+        // user1_policy_details → user1
+        // user2_claim_history → user2
+        // insurance_faq → global (shared document)
+        // support_ticket_logs → global
+        
+        if (filename.StartsWith("user", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = filename.Split('_');
+            if (parts.Length > 0)
+            {
+                return parts[0].ToLower(); // "user1", "user2", "user3"
+            }
+        }
+        
+        return "global"; // Shared documents accessible to all users
+    }
+
+    private string ExtractUserIdFromSession(string sessionId)
+    {
+        // Handle multiple formats:
+        // "user-1" → "user1"
+        // "user1" → "user1"
+        // "user-2" → "user2"
+        // "user2" → "user2"
+        // "ui-session" → "global" (demo mode)
+        
+        var lower = sessionId.ToLower();
+        
+        // Check for "user-X" format (with hyphen)
+        if (lower.StartsWith("user-"))
+        {
+            return lower.Replace("-", ""); // "user-1" → "user1"
+        }
+        
+        // Check for "userX" format (without hyphen)
+        if (lower.StartsWith("user") && lower.Length > 4 && char.IsDigit(lower[4]))
+        {
+            return lower; // "user1" → "user1"
+        }
+        
+        return "global"; // Demo/test sessions see all documents
+    }
+
+    private double DetermineConfidence(string fileName, string content)
+    {
+        var lowerFileName = fileName.ToLower();
+        
+        // Official policy documents (highest confidence)
+        if (lowerFileName.Contains("policy_details") || lowerFileName.Contains("corporate_policy"))
+            return 1.0;
+        
+        // Claim history (high confidence - official records)
+        if (lowerFileName.Contains("claim_history") || lowerFileName.Contains("claim"))
+            return 0.95;
+        
+        // FAQs (good confidence but not official policy)
+        if (lowerFileName.Contains("faq") || content.Contains("Frequently Asked Questions"))
+            return 0.85;
+        
+        // Support tickets/logs (lower confidence - anecdotal)
+        if (lowerFileName.Contains("ticket") || lowerFileName.Contains("support") || lowerFileName.Contains("log"))
+            return 0.70;
+        
+        // Default for unknown types
+        return 0.80;
     }
 
     float Cosine(float[] a, float[] b)
@@ -245,5 +357,27 @@ public class PolicyRagService
             // Invalidate cache
             _userCache.TryRemove(sessionId, out _);
         }
+    }
+
+    public async Task<object> GetDiagnosticInfoAsync()
+    {
+        var vectors = await _repo.GetAllVectorsAsync();
+        var roleCustomerIds = await _indexRepo.GetChunkIdsForTermAsync("role:customer");
+        
+        var vectorSample = vectors.Take(3).Select(v => new 
+        { 
+            Id = v.Id, 
+            SessionId = v.SessionId, 
+            Preview = v.Text.Length > 50 ? v.Text.Substring(0, 50) : v.Text, 
+            Metadata = v.Metadata 
+        }).ToList();
+        
+        return new
+        {
+            TotalVectors = vectors.Count,
+            VectorSample = vectorSample,
+            MetadataIndex_RoleCustomer_Count = roleCustomerIds.Count,
+            MetadataIndex_RoleCustomer_Sample = roleCustomerIds.Take(5).ToList()
+        };
     }
 }

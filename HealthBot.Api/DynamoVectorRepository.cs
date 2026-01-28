@@ -133,4 +133,44 @@ public class DynamoVectorRepository
 
         return chunk;
     }
+    public async Task DeleteAllVectorsAsync()
+    {
+        try
+        {
+            var vectors = await GetAllVectorsAsync();
+            if (!vectors.Any()) return;
+
+            // Delete in batches of 25 (DynamoDB Limit)
+            for (int i = 0; i < vectors.Count; i += 25)
+            {
+                var batch = vectors.Skip(i).Take(25).ToList();
+                var request = new BatchWriteItemRequest
+                {
+                    RequestItems = new Dictionary<string, List<WriteRequest>>
+                    {
+                        {
+                            TableName,
+                            batch.Select(v => new WriteRequest
+                            {
+                                DeleteRequest = new DeleteRequest
+                                {
+                                    Key = new Dictionary<string, AttributeValue>
+                                    {
+                                        { "Id", new AttributeValue { S = v.Id } }
+                                    }
+                                }
+                            }).ToList()
+                        }
+                    }
+                };
+
+                await _client.BatchWriteItemAsync(request);
+            }
+            Console.WriteLine($"[Dynamo] Deleted {vectors.Count} vectors.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Dynamo] Error deleting all vectors: {ex.Message}");
+        }
+    }
 }

@@ -1,0 +1,14 @@
+TicketId: TKT-10291
+UserId: U1001
+Issue: Claim status not updating
+Resolution: Informed user that reimbursement claims take up to 14 working days.
+
+TicketId: TKT-10477
+UserId: U2007
+Issue: Maternity coverage eligibility
+Resolution: Explained 36-month waiting period clause.
+
+TicketId: TKT-10702
+UserId: U3099
+Issue: Cashless hospital list
+Resolution: Shared updated network hospital list via email.

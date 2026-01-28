@@ -21,7 +21,8 @@ public class HybridContextService
     public async Task<HybridContextResult> BuildContext(
         string sessionId,
         string question,
-        IntentType intent)
+        IntentType intent,
+        List<ChatMessage> history = null)  // Accept pre-loaded history
     {
         var context = new StringBuilder();
         bool isLowConfidence = false;
@@ -40,7 +41,16 @@ public class HybridContextService
             question.Contains("what do you mean", StringComparison.OrdinalIgnoreCase);
 
         // 1️⃣ Conversation (Check for Frustration)
-        var history = await _memory.GetLastMessagesAsync(sessionId, 6);
+        // Use provided history or load if not provided
+        if (history == null)
+        {
+            Console.WriteLine("[PERF] Cache MISS - HybridContext loading history");
+            history = await _memory.GetLastMessagesAsync(sessionId, 6);
+        }
+        else
+        {
+            Console.WriteLine("[PERF] Cache HIT - Using pre-loaded history");
+        }
         
         bool isFrustrated = false;
         // Strict keywords - only things that indicate failure/anger

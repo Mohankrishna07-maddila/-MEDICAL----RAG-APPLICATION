@@ -1,0 +1,28 @@
+UserId: U1001
+UserName: Ramesh Kumar
+PolicyNumber: HLT-IND-458921
+PolicyType: Individual Health Insurance
+Insurer: ABC Health Insurance Ltd
+PolicyStartDate: 2024-04-01
+PolicyEndDate: 2025-03-31
+
+Coverage Details:
+- Sum Insured: ₹5,00,000 per year
+- Room Rent: Up to ₹5,000 per day
+- ICU Charges: Covered up to Sum Insured
+- Pre-existing Diseases: Covered after 24 months waiting period
+- Day Care Procedures: Covered
+
+Exclusions:
+- Cosmetic surgeries
+- Dental treatments unless due to accident
+- Self-inflicted injuries
+
+Network Hospitals:
+- Apollo Hospitals
+- Fortis Healthcare
+- Max Hospitals
+
+Claim Process:
+Cashless claims can be availed at network hospitals by presenting the policy card.
+Reimbursement claims require submission of original bills within 30 days of discharge.

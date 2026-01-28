@@ -77,4 +77,46 @@ public class MetadataIndexRepository
         }
         return new HashSet<string>();
     }
+    public async Task DeleteAllIndexesAsync()
+    {
+        try
+        {
+            var request = new ScanRequest { TableName = TableName };
+            var response = await _client.ScanAsync(request);
+            
+            if (response.Items.Count == 0) return;
+
+            // Delete in batches of 25
+            for (int i = 0; i < response.Items.Count; i += 25)
+            {
+                var batch = response.Items.Skip(i).Take(25).ToList();
+                var batchRequest = new BatchWriteItemRequest
+                {
+                    RequestItems = new Dictionary<string, List<WriteRequest>>
+                    {
+                        {
+                            TableName,
+                            batch.Select(item => new WriteRequest
+                            {
+                                DeleteRequest = new DeleteRequest
+                                {
+                                    Key = new Dictionary<string, AttributeValue>
+                                    {
+                                        { "Term", item["Term"] }
+                                    }
+                                }
+                            }).ToList()
+                        }
+                    }
+                };
+                await _client.BatchWriteItemAsync(batchRequest);
+            }
+            Console.WriteLine($"[MetadataIndex] Deleted {response.Items.Count} index terms.");
+        }
+        catch (Exception ex)
+        {
+             // Table might not exist or other error
+             Console.WriteLine($"[MetadataIndex] Error clearing index: {ex.Message}");
+        }
+    }
 }

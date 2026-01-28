@@ -30,14 +30,16 @@ public class ChatController : ControllerBase
     }
 
     [HttpPost]
+    [AllowAnonymous]
     public async Task<IActionResult> Chat([FromBody] ChatRequest request)
     {
-        // Single prompt approach for non-streaming as well
-        // 1. Get History (Needed for greeting check)
-        var history = await _memory.GetLastMessagesAsync(request.SessionId, 3);
-        bool isFirstMessage = !history.Any();
-
-        // 2. Greeting Short-Circuit (Fix for loop)
+        Console.WriteLine("\n========================================");
+        Console.WriteLine($"[NEW REQUEST] Session: {request.SessionId} | Message: {request.Message}");
+        Console.WriteLine("========================================");
+        
+        var startTime = DateTime.UtcNow;
+        
+        // OPTIMIZATION: Check for greetings FIRST (no history needed)
         bool isGreeting =
             request.Message.Trim().Equals("hi", StringComparison.OrdinalIgnoreCase) ||
             request.Message.Trim().Equals("hello", StringComparison.OrdinalIgnoreCase) ||
@@ -45,20 +47,29 @@ public class ChatController : ControllerBase
 
         if (isGreeting)
         {
-            /*
-             * We must save this interaction so that subsequent messages are NOT considered "first message".
-             * Otherwise, the user will be stuck in a "first message" loop if they say "hi" again or if logic depends on it.
-             */
-            await _memory.AddMessageAsync(request.SessionId, "user", request.Message, "QUESTION", "Greeting");
             var greetingAnswer = "Hello! How can I help you with your health insurance today?";
-            await _memory.AddMessageAsync(request.SessionId, "assistant", greetingAnswer, "ANSWER", "Greeting");
+            
+            // Parallel save for greeting
+            await _memory.AddMessageBatchAsync(
+                request.SessionId,
+                ("user", request.Message, "QUESTION", "Greeting", "USER", 0, ""),
+                ("assistant", greetingAnswer, "ANSWER", "Greeting", "BOT", 0, "")
+            );
 
+            Console.WriteLine($"[PERF] Greeting handled in {(DateTime.UtcNow - startTime).TotalMilliseconds}ms");
+            
             return Ok(new
             {
                 Intent = "Greeting",
                 Answer = greetingAnswer
             });
         }
+        
+        // OPTIMIZATION: Lazy load history only when needed
+        var historyStart = DateTime.UtcNow;
+        var history = await _memory.GetLastMessagesAsync(request.SessionId, 6);  // Load once with limit=6
+        Console.WriteLine($"[PERF] History load took: {(DateTime.UtcNow - historyStart).TotalMilliseconds}ms");
+        bool isFirstMessage = !history.Any();
         
         // 2a. Ticket Status Check (Regex)
         var ticketMatch = System.Text.RegularExpressions.Regex.Match(request.Message, @"(TKT-[A-Za-z0-9]+)");
@@ -106,16 +117,17 @@ public class ChatController : ControllerBase
             return Ok(new
             {
                 Intent = "TalkToAgent",
-                Answer = $"I’ve connected you to a human agent. A support ticket has been created. Ticket ID: {ticketId}.",
+                Answer = $"I've connected you to a human agent. A support ticket has been created. Ticket ID: {ticketId}.",
                 TicketId = ticketId
             });
         }
 
 
 
-        // 2. Standard RAG / Chat Flow
-        // We skip intent classification for simple flows, or use it just for context building if needed
-        var hybridContext = await _hybrid.BuildContext(request.SessionId, request.Message, IntentType.PolicyInfo);
+        // 2. Standard RAG / Chat Flow - PASS HISTORY TO AVOID DUPLICATE LOAD
+        var ragStart = DateTime.UtcNow;
+        var hybridContext = await _hybrid.BuildContext(request.SessionId, request.Message, IntentType.PolicyInfo, history);
+        Console.WriteLine($"[PERF] RAG BuildContext took: {(DateTime.UtcNow - ragStart).TotalMilliseconds}ms");
 
         // Frustration Handoff Logic (Priority over Low Confidence)
         if (hybridContext.IsFrustrated)
@@ -159,16 +171,27 @@ public class ChatController : ControllerBase
             }
         }
 
+        var promptStart = DateTime.UtcNow;
         var prompt = BuildSystemPrompt(hybridContext.ContextString, request.Message, isFirstMessage);
+        Console.WriteLine($"[PERF] BuildSystemPrompt took: {(DateTime.UtcNow - promptStart).TotalMilliseconds}ms");
+        
+        var llmStart = DateTime.UtcNow;
         var answer = await _ai.GenerateAsync(prompt);
+        Console.WriteLine($"[PERF] LLM GenerateAsync took: {(DateTime.UtcNow - llmStart).TotalMilliseconds}ms");
 
-        // 3. Save & Return
-        // Decide source based on context usage
+        // 3. Save & Return (PARALLEL BATCH WRITE)
         var source = hybridContext.IsLowConfidence ? "LLM" : "VECTOR_RAG";
         var conf = hybridContext.Confidence;
         
-        await _memory.AddMessageAsync(request.SessionId, "user", request.Message, "QUESTION", "General", "USER");
-        await _memory.AddMessageAsync(request.SessionId, "assistant", answer, "ANSWER", "General", source, conf);
+        var saveStart = DateTime.UtcNow;
+        await _memory.AddMessageBatchAsync(
+            request.SessionId,
+            ("user", request.Message, "QUESTION", "General", "USER", 0, ""),
+            ("assistant", answer, "ANSWER", "General", source, conf, "")
+        );
+        Console.WriteLine($"[PERF] Save messages took: {(DateTime.UtcNow - saveStart).TotalMilliseconds}ms");
+        
+        Console.WriteLine($"[PERF] Total request time: {(DateTime.UtcNow - startTime).TotalMilliseconds}ms");
         
         return Ok(new
         {

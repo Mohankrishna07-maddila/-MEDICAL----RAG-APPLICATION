@@ -1,0 +1,21 @@
+﻿  Determining projects to restore...
+  All projects are up-to-date for restore.
+CSC : warning CS9057: The analyzer assembly 'C:\Users\maddi\.nuget\packages\microsoft.aspnetcore.openapi\10.0.1\analyzers\dotnet\cs\Microsoft.AspNetCore.OpenApi.SourceGenerators.dll' references version '4.13.0.0' of the compiler, which is newer than the currently running version '4.11.0.0'. [C:\Users\maddi\OneDrive\Documents\my_projects\healthbot\HealthBot.Api\HealthBot.Api.csproj]
+C:\Users\maddi\OneDrive\Documents\my_projects\healthbot\HealthBot.Api\Controllers\AdminController.cs(22,6): error CS0246: The type or namespace name 'AllowAnonymousAttribute' could not be found (are you missing a using directive or an assembly reference?) [C:\Users\maddi\OneDrive\Documents\my_projects\healthbot\HealthBot.Api\HealthBot.Api.csproj]
+C:\Users\maddi\OneDrive\Documents\my_projects\healthbot\HealthBot.Api\Controllers\AdminController.cs(22,6): error CS0246: The type or namespace name 'AllowAnonymous' could not be found (are you missing a using directive or an assembly reference?) [C:\Users\maddi\OneDrive\Documents\my_projects\healthbot\HealthBot.Api\HealthBot.Api.csproj]
+C:\Users\maddi\OneDrive\Documents\my_projects\healthbot\HealthBot.Api\Controllers\AdminController.cs(55,6): error CS0246: The type or namespace name 'AllowAnonymousAttribute' could not be found (are you missing a using directive or an assembly reference?) [C:\Users\maddi\OneDrive\Documents\my_projects\healthbot\HealthBot.Api\HealthBot.Api.csproj]
+C:\Users\maddi\OneDrive\Documents\my_projects\healthbot\HealthBot.Api\Controllers\AdminController.cs(55,6): error CS0246: The type or namespace name 'AllowAnonymous' could not be found (are you missing a using directive or an assembly reference?) [C:\Users\maddi\OneDrive\Documents\my_projects\healthbot\HealthBot.Api\HealthBot.Api.csproj]
+C:\Users\maddi\OneDrive\Documents\my_projects\healthbot\HealthBot.Api\PolicyRagService.cs(146,50): warning CS8625: Cannot convert null literal to non-nullable reference type. [C:\Users\maddi\OneDrive\Documents\my_projects\healthbot\HealthBot.Api\HealthBot.Api.csproj]
+
+Build FAILED.
+
+CSC : warning CS9057: The analyzer assembly 'C:\Users\maddi\.nuget\packages\microsoft.aspnetcore.openapi\10.0.1\analyzers\dotnet\cs\Microsoft.AspNetCore.OpenApi.SourceGenerators.dll' references version '4.13.0.0' of the compiler, which is newer than the currently running version '4.11.0.0'. [C:\Users\maddi\OneDrive\Documents\my_projects\healthbot\HealthBot.Api\HealthBot.Api.csproj]
+C:\Users\maddi\OneDrive\Documents\my_projects\healthbot\HealthBot.Api\PolicyRagService.cs(146,50): warning CS8625: Cannot convert null literal to non-nullable reference type. [C:\Users\maddi\OneDrive\Documents\my_projects\healthbot\HealthBot.Api\HealthBot.Api.csproj]
+C:\Users\maddi\OneDrive\Documents\my_projects\healthbot\HealthBot.Api\Controllers\AdminController.cs(22,6): error CS0246: The type or namespace name 'AllowAnonymousAttribute' could not be found (are you missing a using directive or an assembly reference?) [C:\Users\maddi\OneDrive\Documents\my_projects\healthbot\HealthBot.Api\HealthBot.Api.csproj]
+C:\Users\maddi\OneDrive\Documents\my_projects\healthbot\HealthBot.Api\Controllers\AdminController.cs(22,6): error CS0246: The type or namespace name 'AllowAnonymous' could not be found (are you missing a using directive or an assembly reference?) [C:\Users\maddi\OneDrive\Documents\my_projects\healthbot\HealthBot.Api\HealthBot.Api.csproj]
+C:\Users\maddi\OneDrive\Documents\my_projects\healthbot\HealthBot.Api\Controllers\AdminController.cs(55,6): error CS0246: The type or namespace name 'AllowAnonymousAttribute' could not be found (are you missing a using directive or an assembly reference?) [C:\Users\maddi\OneDrive\Documents\my_projects\healthbot\HealthBot.Api\HealthBot.Api.csproj]
+C:\Users\maddi\OneDrive\Documents\my_projects\healthbot\HealthBot.Api\Controllers\AdminController.cs(55,6): error CS0246: The type or namespace name 'AllowAnonymous' could not be found (are you missing a using directive or an assembly reference?) [C:\Users\maddi\OneDrive\Documents\my_projects\healthbot\HealthBot.Api\HealthBot.Api.csproj]
+    2 Warning(s)
+    4 Error(s)
+
+Time Elapsed 00:00:03.50

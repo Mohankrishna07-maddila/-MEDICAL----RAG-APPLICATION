@@ -60,4 +60,45 @@ public class S3DocumentLoader
             return new List<string>();
         }
     }
+    public async Task DeleteAllFilesAsync()
+    {
+        try
+        {
+            var objects = await ListDocuments();
+            if (!objects.Any()) return;
+
+            var deleteRequest = new DeleteObjectsRequest
+            {
+                BucketName = _bucketName,
+                Objects = objects.Select(k => new KeyVersion { Key = k }).ToList()
+            };
+
+            await _s3Client.DeleteObjectsAsync(deleteRequest);
+            Console.WriteLine($"[S3] Deleted {objects.Count} files.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[S3] Error deleting files: {ex.Message}");
+        }
+    }
+
+    public async Task UploadFileAsync(string key, string content)
+    {
+        try
+        {
+            var request = new PutObjectRequest
+            {
+                BucketName = _bucketName,
+                Key = key,
+                ContentBody = content
+            };
+
+            await _s3Client.PutObjectAsync(request);
+            Console.WriteLine($"[S3] Uploaded {key}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[S3] Error uploading {key}: {ex.Message}");
+        }
+    }
 }

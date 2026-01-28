@@ -8,7 +8,21 @@ namespace HealthBot.Api;
 
 public class LocalLlmService : IAIService
 {
-    private readonly HttpClient _http = new();
+    private readonly HttpClient _http;
+
+    public LocalLlmService()
+    {
+        _http = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(60), // Explicit timeout
+            BaseAddress = new Uri("http://localhost:11434")
+        };
+        
+        // Disable connection pooling issues
+        _http.DefaultRequestHeaders.ConnectionClose = false;
+        
+        Console.WriteLine("[LLM] HttpClient initialized with 60s timeout");
+    }
 
     public async Task<Models.LlmChatResult> AskWithIntentAsync(
         string question,
@@ -59,7 +73,7 @@ Respond ONLY in valid JSON:
         };
 
         var response = await _http.PostAsJsonAsync(
-            "http://localhost:11434/api/generate",
+            "/api/generate",
             body
         );
 
@@ -88,6 +102,8 @@ Respond ONLY in valid JSON:
 
     public async Task<string> GenerateAsync(string prompt)
     {
+        var start = DateTime.UtcNow;
+        
         var body = new
         {
             model = "gemma3:4b",
@@ -99,14 +115,19 @@ Respond ONLY in valid JSON:
             }
         };
 
+        Console.WriteLine($"[PERF-LLM] Sending request to Ollama...");
+        var httpStart = DateTime.UtcNow;
         var response = await _http.PostAsJsonAsync(
-            "http://localhost:11434/api/generate",
+            "/api/generate",  // Relative URL
             body
         );
+        Console.WriteLine($"[PERF-LLM] HTTP request took: {(DateTime.UtcNow - httpStart).TotalMilliseconds}ms");
 
         response.EnsureSuccessStatusCode();
 
         var raw = await response.Content.ReadFromJsonAsync<OllamaResponse>();
+        Console.WriteLine($"[PERF-LLM] Total GenerateAsync took: {(DateTime.UtcNow - start).TotalMilliseconds}ms");
+        
         return raw!.Response.Trim();
     }
 
@@ -120,7 +141,7 @@ Respond ONLY in valid JSON:
             stream = true
         };
 
-        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, "http://localhost:11434/api/generate")
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, "/api/generate")
         {
             Content = new StringContent(JsonSerializer.Serialize(req), System.Text.Encoding.UTF8, "application/json")
         };
