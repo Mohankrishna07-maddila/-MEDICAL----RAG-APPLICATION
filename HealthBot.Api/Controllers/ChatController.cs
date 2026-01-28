@@ -29,6 +29,14 @@ public class ChatController : ControllerBase
         _hybrid = hybrid;
     }
 
+    [HttpDelete("{sessionId}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ClearHistory(string sessionId)
+    {
+        await _memory.ClearSessionAsync(sessionId);
+        return Ok(new { Message = $"History cleared for session {sessionId}" });
+    }
+
     [HttpPost]
     [AllowAnonymous]
     public async Task<IActionResult> Chat([FromBody] ChatRequest request)

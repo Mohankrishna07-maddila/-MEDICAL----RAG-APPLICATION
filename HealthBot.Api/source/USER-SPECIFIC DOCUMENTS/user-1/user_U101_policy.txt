@@ -1,0 +1,19 @@
+DocumentScope: USER
+UserId: U101
+DocType: POLICY
+
+Policy Details
+
+Policy Number: HLT-101-A
+Policy Holder: Anil Sharma
+Policy Type: Individual Health Insurance
+Sum Insured: ₹5,00,000
+
+Coverage:
+- Hospitalization expenses covered
+- ICU charges included
+- Pre-existing diseases covered after 24 months
+
+Exclusions:
+- Cosmetic treatments
+- Dental procedures (unless accident-related)

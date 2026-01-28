@@ -182,4 +182,40 @@ public class DynamoConversationMemory
             }
         }
     }
+    public async Task ClearSessionAsync(string sessionId)
+    {
+        try
+        {
+            // 1. In memory
+            if (_fallbackMemory.ContainsKey(sessionId))
+            {
+                _fallbackMemory.Remove(sessionId);
+            }
+
+            // 2. Cache
+             for (int i = 1; i <= 10; i++)
+            {
+                _cache.Remove($"chat_history_{sessionId}_{i}");
+            }
+
+            // 3. DynamoDB
+            // We need to query all items (PK = SessionId) and delete them
+            // Since Timestamp is SK, we need to get both PK and SK to delete
+            var queryConfig = new QueryOperationConfig { Filter = new QueryFilter("SessionId", QueryOperator.Equal, sessionId) };
+            var search = _context.FromQueryAsync<ChatMessage>(queryConfig);
+            var messages = await search.GetRemainingAsync();
+            
+            if (messages.Count > 0)
+            {
+                var batch = _context.CreateBatchWrite<ChatMessage>();
+                batch.AddDeleteItems(messages);
+                await batch.ExecuteAsync();
+                Console.WriteLine($"[Dynamo] Cleared {messages.Count} messages for session {sessionId}");
+            }
+        }
+        catch (Exception ex)
+        {
+             Console.WriteLine($"[ERROR] Failed to clear session {sessionId}: {ex.Message}");
+        }
+    }
 }

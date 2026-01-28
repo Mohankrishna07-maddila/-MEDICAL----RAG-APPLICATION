@@ -32,29 +32,28 @@ If no short-curcuit triggers, the system builds the context for the AI:
 1.  **Conversation History**: Fetches the last 6 messages from DynamoDB.
 2.  **Frustration Detection**: Checks for keywords like "stupid", "broken" or repeated confusion. If detected, `IsFrustrated` flag is set.
 3.  **Metadata-Driven RAG (Policy Search)**:
-    *   **Filter**: Checks `HealthBot_MetadataIndex` for chunks matching the user's role (e.g., `role:customer`).
+    *   **Filter**: 
+        *   **Security Check**: Maps `SessionId` (e.g. `ui-session`) to User ID.
+        *   **Isolation**: If global session, restricts view to `user_id:global` ONLY. If specific user, sees `user_id:global` AND `user_id:specific`.
     *   **Embed**: Embeds the user's question using `EmbeddingService`.
     *   **Search**: Searches *only* the filtered chunks in `VectorStore` (Vector Search).
-    *   **Re-Rank**: combined score = `0.7 * SemanticSimilarity + 0.3 * MetadataConfidence`.
-    *   **Result**: Returns top matching chunks with **Citations** (e.g., `[Source: Gold Plan]`).
+    *   **Re-Rank**: 
+        *   Checks `doc_type` metadata (`personal` vs `reference`).
+        *   **Boost**: Applies **50% Score Boost** to Personal Documents.
+        *   Formula: `Final = (0.7*Sim + 0.3*Conf) * (isPersonal ? 1.5 : 1.0)`.
+    *   **Result**: Returns top matching chunks with **Citations**.
 
 ### Step 3: Handoff Logic
 Before generating an answer, the system checks the flags from Step 2:
-*   **Frustrated User**: Auto-creates a ticket and replies: *"I see we're going in circles... I've created a ticket."*
-*   **Low Confidence (Unknown Policy)**: If RAG failed but the user asked about insurance, it auto-creates a ticket and replies: *"I couldn't find details... I've connected you to an agent."*
+*   **Frustrated User**: Auto-creates a ticket and replies.
+*   **Low Confidence**: If RAG failed but the user asked about insurance, handoff.
 
 ### Step 4: AI Generation (`LocalLlmService`)
-If no handoff is needed, the system generates a response:
-1.  **Prompt Construction**: A system prompt is built containing:
-    *   Identity Rules ("You are an AI for hospital insurance...").
-    *   Context (Conversation History + Policy Chunks w/ Citations).
-    *   The User's Question.
-2.  **Ollama Inference**: The prompt is sent to `http://localhost:11434/api/generate` (Model: `gemma3:4b`).
-3.  **Response**: The generated text is returned, citing the sources provided in the context.
+If no handoff is needed, the system generates a response using Ollama (`gemma3:4b`).
 
-### Step 5: Persistence
-1.  The User's question is saved to `DynamoConversationMemory`.
-2.  The AI's Answer (or the Handoff message) is saved to Memory.
+### Step 5: Persistence & Management
+1.  **Chat History**: Saved to `DynamoConversationMemory`.
+2.  **History Management**: Endpoint `DELETE /chat/{sessionId}` allows clearing history to prevent context pollution.
 
 ---
 
@@ -63,28 +62,22 @@ If no handoff is needed, the system generates a response:
 ### `LocalLlmService`
 - **Role**: Interface to the Ollama server.
 - **Model**: `gemma3:4b`.
-- **Endpoint**: `POST /api/generate`.
-- **Function**: Handles both chat generation and intent classification (if enabled).
 
-### `PolicyRagService`
-- **Role**: Manages the Knowledge Base and Metadata Index.
-- **Indexing**:
-    1.  Chunks text and generates embeddings.
-    2.  Stores Chunks in `VectorStore`.
-    3.  Updates Inverted Index in `HealthBot_MetadataIndex` (Term -> ChunkIds).
+### `PolicyRagService` (Enhanced)
+- **Role**: Manages the Knowledge Base, Metadata Index, and **Smart Sync**.
+- **Syncing**:
+    1.  **Incremental Sync**: Auto-detects modified S3 files via timestamps.
+    2.  **Background Service**: `RagSyncBackgroundService` checks every 5 minutes.
+    3.  **Indexing**: Adds metadata (`doc_type`, `user_id`) for smart retrieval.
 - **Retrieval**: 
-    1.  **Metadata Filter**: Gets candidate ID list from Index.
-    2.  **Vector Search**: Scans only candidate chunks.
-    3.  **Re-Ranking**: Boosts results based on metadata confidence.
+    1.  **Session Isolation**: Enforces strict data visibility rules.
+    2.  **Boosting**: Prioritizes personal content over generic FAQs.
 
 ### `HybridContextService`
 - **Role**: The "Brain" that decides *what* the AI should know.
-- **Logic**: Combines History + RAG + Heuristics (Frustration/Confusion analysis).
 
 ### `TicketService`
 - **Role**: Manages Support Tickets.
-- **Storage**: DynamoDB.
-- **Function**: Creates tickets (`TKT-XXXX`) when the AI cannot handle a request or when requested by the user.
 
 ---
 
@@ -108,11 +101,17 @@ sequenceDiagram
     end
 
     API->>Hybrid: BuildContext(Message)
-    Hybrid->>RAG: Search Policy (UserRole, Query)
-    RAG->>Meta: Get Chunk IDs for "role:customer"
-    Meta-->>RAG: Return List of IDs
-    RAG->>DB: Fetch Vectors for these IDs
-    RAG->>RAG: Cosine Similarity & Re-Ranking
+    Hybrid->>RAG: Search Policy (SessionId, Query)
+    
+    note right of RAG: Security Check: Map Session -> UserID
+    
+    rect rgb(200, 250, 200)
+        RAG->>Meta: Get Chunk IDs (UserFilter vs GlobalFilter)
+        Meta-->>RAG: Return Safe List of IDs
+    end
+    
+    RAG->>DB: Fetch Vectors for Safe IDs (Batch Get)
+    RAG->>RAG: Sim Check + Personal Doc Boost (1.5x)
     RAG-->>Hybrid: Return Relevant Chunks + Citations
     Hybrid-->>API: Context + Flags
 

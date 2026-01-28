@@ -1,0 +1,19 @@
+DocumentScope: USER
+UserId: U103
+DocType: POLICY
+
+Policy Details
+
+Policy Number: CORP-103-G
+Policy Holder: Rahul Iyer
+Policy Type: Corporate Group Health Insurance
+Employer: NexaTech Pvt Ltd
+Sum Insured: ₹3,00,000
+
+Coverage:
+- Pre-existing diseases covered from Day 1
+- Mental health treatment covered
+- No room rent capping
+
+Exclusions:
+- Non-prescribed alternative therapies

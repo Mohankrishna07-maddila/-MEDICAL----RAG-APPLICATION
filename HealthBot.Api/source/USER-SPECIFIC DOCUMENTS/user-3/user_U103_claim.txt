@@ -1,0 +1,12 @@
+DocumentScope: USER
+UserId: U103
+DocType: CLAIM_HISTORY
+
+Claim History
+
+Claim ID: CLM-99301
+Hospital: Manipal Hospital
+Diagnosis: Anxiety Disorder
+Claim Type: Cashless
+Claim Amount: ₹48,600
+Claim Status: Approved

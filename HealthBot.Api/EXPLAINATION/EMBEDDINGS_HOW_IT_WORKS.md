@@ -81,4 +81,20 @@ We tag each document with a label (Metadata) like `role:customer` or `role:emplo
 1.  **Filter First**: We check the **Metadata Index** to find only "Customer" documents.
 2.  **Search Second**: We run Vector Search *only* on that safe list.
 
-This gives us the best of both worlds: **Smart Search** (Vectors) + **Strict Rules** (Metadata).
+
+---
+
+## 5. Re-Ranking (The Tie-Breaker)
+
+Sometimes, two documents have similar vectors (Similar content), but one is much more important.
+
+*   **Doc A**: "General Info: Some policies cover dental." (Sim: 0.85)
+*   **Doc B**: "Your Gold Plan covers dental." (Sim: 0.84)
+
+Mathematically, A is "better". But logically, B is the one you want.
+
+**The Fix:** We apply a **Boost**.
+*   We check the `doc_type` Metadata.
+*   If `doc_type == "personal"`, we multiply the score by **1.5x**.
+*   **Doc B New Score**: 0.84 * 1.5 = **1.26** (Winner!)
+

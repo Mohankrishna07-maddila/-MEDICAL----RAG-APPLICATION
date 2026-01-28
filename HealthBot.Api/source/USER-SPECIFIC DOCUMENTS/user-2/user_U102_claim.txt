@@ -1,0 +1,12 @@
+DocumentScope: USER
+UserId: U102
+DocType: CLAIM_HISTORY
+
+Claim History
+
+Claim ID: CLM-88214
+Hospital: Fortis Hospital
+Diagnosis: Appendicitis
+Claim Type: Reimbursement
+Claim Amount: ₹1,12,400
+Claim Status: Settled

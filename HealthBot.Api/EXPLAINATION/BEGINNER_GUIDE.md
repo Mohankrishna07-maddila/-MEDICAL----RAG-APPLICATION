@@ -12,10 +12,19 @@ When you say something, the receptionist (Bot) checks a "Cheat Sheet" first effe
 
 ### Step 2: The "Library Search" (RAG - Retrieval Augmented Generation)
 If you ask a real question (like *"Does my policy cover eye surgery?"*), the receptionist knows it cannot just guess the answer.
-1.  **The Catalog Check**: First, it checks the **Master Catalog** (Metadata Index) for your specific role (e.g., "Customer Plan"). It ignores irrelevant books like "Employee Internal SOPs".
-2.  **The Shelf Search**: It goes to the shelf matching your role and looks for documents with words like "eye surgery".
-3.  **The Dragnet**: It pulls out only the **specific pages** that match.
-    *   *Note: If it finds nothing, it might get nervous (Low Confidence).*
+
+1.  **The Security Check (VIP Access)**: First, it looks at your ID badge.
+    *   **Global User**: Can only see "General Info" books (FAQs, Brochures).
+    *   **Specific User (Priya)**: Can see "General Info" AND "Priya's Personal File".
+    *   *Result*: It ensures Priya never sees Rahul's file, and "Guests" never see any private files.
+
+2.  **The Shelf Search**: It goes to the relevant shelf and looks for documents with words like "eye surgery".
+
+3.  **The Smart Sorting (Ranking)**:
+    *   It finds a generic FAQ saying "Some plans cover vision."
+    *   It finds Priya's policy saying "Gold Plan covers $500 vision."
+    *   **Boost**: It knows Priya's policy is more important, so it puts that page ON TOP.
+
 
 ### Step 3: The "Thinking" (The AI/LLM)
 Now the receptionist sits down with the pages it found.

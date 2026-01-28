@@ -1,0 +1,9 @@
+DocumentScope: USER
+UserId: U102
+DocType: SUPPORT_TICKET
+
+Support Interaction Log
+
+Ticket ID: TKT-44109
+Issue: Maternity coverage eligibility
+Resolution: Explained 36-month waiting period for maternity benefits.

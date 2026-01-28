@@ -1,0 +1,9 @@
+DocumentScope: USER
+UserId: U101
+DocType: SUPPORT_TICKET
+
+Support Interaction Log
+
+Ticket ID: TKT-33012
+Issue: Claim status delay
+Resolution: User was informed that reimbursement claims take up to 14 working days.

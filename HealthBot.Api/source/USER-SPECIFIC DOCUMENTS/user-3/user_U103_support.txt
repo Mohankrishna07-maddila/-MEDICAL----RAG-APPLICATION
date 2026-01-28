@@ -1,0 +1,9 @@
+DocumentScope: USER
+UserId: U103
+DocType: SUPPORT_TICKET
+
+Support Interaction Log
+
+Ticket ID: TKT-55987
+Issue: Mental health claim coverage
+Resolution: Confirmed coverage as per corporate policy terms.

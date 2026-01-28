@@ -26,16 +26,26 @@ The Strategist needs to gather information before we can answer.
 
 ### Stop 3: The Librarian (PolicyRagService.cs)
 The Librarian manages the massive book of insurance rules, now indexed by a specialized catalog (Metadata).
-1.  **Translation**: The Librarian calls the Embedding Service to turn *"Does my policy cover dental?"* into numbers (Vector).
-2.  **The Index Lookup**: Before scanning books, the Librarian checks the **Metadata Index** (`HealthBot_MetadataIndex`).
-    *   *Constraint*: "User is a Customer".
-    *   *Result*: "Here is a list of approved Chunk IDs for Customers (ignoring Employee SOPs)."
-3.  **The Filtered Search**: It scans ONLY the approved chunks in the **Vector Store** (`VectorStore`).
-4.  **The Find & Re-Rank**: It finds matches and re-ranks them based on:
+
+1.  **Security Check (Isolation)**: 
+    *   The Librarian checks your ID (`SessionId`).
+    *   **Rule**: "You are `ui-session` (Global). You may ONLY see documents marked `user_id:global`."
+    *   *Result*: Access to Priya's policy is BLOCKED. Only generic FAQs are allowed.
+
+2.  **Translation**: The Librarian calls the Embedding Service to turn *"Does my policy cover dental?"* into numbers (Vector).
+
+3.  **The Index Lookup**: It checks the **Metadata Index** (`HealthBot_MetadataIndex`).
+    *   *Query*: "Get valid chunks for `user_id:global`".
+    *   *Result*: "Here is a list of approved Chunk IDs (e.g., [Generic_FAQ, General_Claim_Process])."
+
+4.  **The Filtered Search**: It scans ONLY the approved chunks in the **Vector Store** (`VectorStore`).
+
+5.  **The Find & Re-Rank**: It finds matches and re-ranks them:
     *   Content Match (Similarity)
-    *   Trust Score (Metadata Confidence)
-    *   *Match found: "Section 8: Dental Care is NOT covered in the Basic Plan."* (Score: 0.88, Confidence: 1.0 -> Final: 0.91)
-5.  **Return**: The Librarian hands this verified paragraph back to the Strategist.
+    *   **Type Boost**: If (`doc_type == "personal"`), score x 1.5.
+    *   *Result*: Useful chunks are returned, sorted by relevance.
+
+6.  **Return**: The Librarian hands this safe, verified paragraph back to the Strategist.
 
 ---
 

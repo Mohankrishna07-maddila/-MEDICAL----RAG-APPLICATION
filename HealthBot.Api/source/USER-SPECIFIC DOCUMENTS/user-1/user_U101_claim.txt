@@ -1,0 +1,12 @@
+DocumentScope: USER
+UserId: U101
+DocType: CLAIM_HISTORY
+
+Claim History:
+
+Claim ID: CLM-77121
+Hospital: Apollo Hospitals
+Diagnosis: Typhoid Fever
+Claim Type: Cashless
+Claim Amount: ₹64,800
+Claim Status: Approved

@@ -6,6 +6,8 @@ using System.IO;
 using System.Linq; // Added for Enumerable methods
 using System.Collections.Generic;
 using Amazon.DynamoDBv2.DataModel;
+using Amazon.DynamoDBv2;
+using Amazon.DynamoDBv2.Model;
 
 public class PolicyRagService
 {
@@ -16,6 +18,7 @@ public class PolicyRagService
     private readonly FakePolicySeeder _seeder;           // [NEW] Fake Data
     private readonly S3DocumentLoader _s3;
     private readonly DynamoDBContext _context; // For sync state tracking
+    private readonly IAmazonDynamoDB _dynamoDb;
     
     // In-Memory Fallback cache (Optional, but good for performance)
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, List<VectorChunk>> _userCache = new();
@@ -27,7 +30,8 @@ public class PolicyRagService
         MetadataIndexRepository indexRepo,
         FakePolicySeeder seeder,
         S3DocumentLoader s3,
-        DynamoDBContext context)
+        DynamoDBContext context,
+        IAmazonDynamoDB dynamoDb)
     {
         _ai = ai;
         _embedder = embedder;
@@ -36,14 +40,56 @@ public class PolicyRagService
         _seeder = seeder;
         _s3 = s3;
         _context = context;
+        _dynamoDb = dynamoDb;
         
         InitializeAsync().Wait();
     }
 
     private async Task InitializeAsync()
     {
+        // 1. Ensure RagSyncState table exists
+        await EnsureSyncTableExists();
+        
         // Auto-seeding disabled. Use ResetAndIngestFromS3Async via controller.
         await Task.CompletedTask;
+    }
+
+    private async Task EnsureSyncTableExists()
+    {
+        try
+        {
+            var request = new DescribeTableRequest { TableName = "RagSyncState" };
+            await _dynamoDb.DescribeTableAsync(request);
+        }
+        catch (ResourceNotFoundException)
+        {
+            Console.WriteLine("[INIT] Creating RagSyncState table...");
+            var request = new CreateTableRequest
+            {
+                TableName = "RagSyncState",
+                KeySchema = new List<KeySchemaElement>
+                {
+                    new KeySchemaElement("PK", KeyType.HASH),
+                    new KeySchemaElement("SK", KeyType.RANGE)
+                },
+                AttributeDefinitions = new List<AttributeDefinition>
+                {
+                    new AttributeDefinition("PK", ScalarAttributeType.S),
+                    new AttributeDefinition("SK", ScalarAttributeType.S)
+                },
+                BillingMode = BillingMode.PAY_PER_REQUEST
+            };
+            
+            await _dynamoDb.CreateTableAsync(request);
+            
+            // Wait for table to be active
+            Console.WriteLine("[INIT] Waiting for RagSyncState table to be active...");
+            await Task.Delay(3000); 
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[INIT] Error checking/creating RagSyncState table: {ex.Message}");
+        }
     }
 
     public async Task ClearAllDataAsync()
@@ -104,7 +150,7 @@ public class PolicyRagService
                  { 
                      Text = c, 
                      Embedding = emb, 
-                     SessionId = "GLOBAL",
+                     SessionId = userId == "global" ? "GLOBAL" : userId,
                      Metadata = metadata 
                  };
                  newVectors.Add(chunkObj);
@@ -175,10 +221,10 @@ public class PolicyRagService
 
         if (userId == "global")
         {
-            // Demo/test mode: See all documents
-            var roleFilter = await _indexRepo.GetChunkIdsForTermAsync("role:customer");
-            candidateIds = roleFilter;
-            Console.WriteLine($"[RAG] Global session - showing all documents");
+            // Security Fix: "global" session should ONLY see global documents, not everyone's documents
+            var globalDocs = await _indexRepo.GetChunkIdsForTermAsync("user_id:global");
+            candidateIds = globalDocs;
+            Console.WriteLine($"[RAG] Global session - Showing GLOBAL documents only.");
         }
         else
         {
@@ -547,7 +593,7 @@ public class PolicyRagService
                     {
                         Text = c,
                         Embedding = emb,
-                        SessionId = "GLOBAL",
+                        SessionId = userId == "global" ? "GLOBAL" : userId,
                         Metadata = metadata
                     };
                     newVectors.Add(chunkObj);

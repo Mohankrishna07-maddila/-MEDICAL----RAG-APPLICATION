@@ -1,0 +1,24 @@
+DocumentScope: USER
+UserId: U102
+DocType: POLICY
+
+Policy Details
+
+Policy Number: HLT-102-F
+Policy Holder: Priya Verma
+Policy Type: Family Floater
+Sum Insured: ₹8,00,000
+
+Covered Members:
+- Priya Verma (Self)
+- Rohit Verma (Spouse)
+- Aarav Verma (Son)
+
+Coverage:
+- Hospitalization expenses covered
+- Pre-existing diseases covered after 36 months
+- Maternity benefits available after waiting period
+
+Exclusions:
+- OPD expenses
+- Cosmetic procedures
