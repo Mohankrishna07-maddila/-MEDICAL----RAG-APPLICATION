@@ -12,9 +12,9 @@ When you say something, the receptionist (Bot) checks a "Cheat Sheet" first effe
 
 ### Step 2: The "Library Search" (RAG - Retrieval Augmented Generation)
 If you ask a real question (like *"Does my policy cover eye surgery?"*), the receptionist knows it cannot just guess the answer.
-1.  It runs to a **Huge Filing Cabinet** (Database).
-2.  It looks for documents that contain words like "eye surgery" or "vision coverage".
-3.  It pulls out only the **specific pages** that talk about that topic.
+1.  **The Catalog Check**: First, it checks the **Master Catalog** (Metadata Index) for your specific role (e.g., "Customer Plan"). It ignores irrelevant books like "Employee Internal SOPs".
+2.  **The Shelf Search**: It goes to the shelf matching your role and looks for documents with words like "eye surgery".
+3.  **The Dragnet**: It pulls out only the **specific pages** that match.
     *   *Note: If it finds nothing, it might get nervous (Low Confidence).*
 
 ### Step 3: The "Thinking" (The AI/LLM)
@@ -22,7 +22,8 @@ Now the receptionist sits down with the pages it found.
 1.  It reads your question: *"Does my policy cover eye surgery?"*
 2.  It reads the pages it found: *"Policy Section 4: Vision is covered up to $500..."*
 3.  It formulates a polite answer in plain English: *"Yes, your policy covers eye surgery up to $500."*
-    *   *Important: It is strictly told NOT to make things up. It must use the pages it found.*
+4.  **Citations**: It adds a small note saying where it found the info (e.g., *"[Source: Gold Plan v2]"*).
+    *   *Important: It is strictly told NOT to make things up and to always cite its sources.*
 
 ### Step 4: The "Frustration Check" (Safety Net)
 Before answering, the receptionist checks how the conversation is going.

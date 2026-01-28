@@ -25,12 +25,17 @@ The Strategist needs to gather information before we can answer.
 ---
 
 ### Stop 3: The Librarian (PolicyRagService.cs)
-The Librarian manages the massive book of insurance rules.
+The Librarian manages the massive book of insurance rules, now indexed by a specialized catalog (Metadata).
 1.  **Translation**: The Librarian calls the Embedding Service to turn *"Does my policy cover dental?"* into numbers (Vector).
-2.  **The Search**: It scans the database for paragraphs with similar "numbers".
-3.  **The Find**: It finds a match!
-    *   *Match found: "Section 8: Dental Care is NOT covered in the Basic Plan."* (Score: 0.88)
-4.  **Return**: The Librarian hands this paragraph back to the Strategist.
+2.  **The Index Lookup**: Before scanning books, the Librarian checks the **Metadata Index** (`HealthBot_MetadataIndex`).
+    *   *Constraint*: "User is a Customer".
+    *   *Result*: "Here is a list of approved Chunk IDs for Customers (ignoring Employee SOPs)."
+3.  **The Filtered Search**: It scans ONLY the approved chunks in the **Vector Store** (`VectorStore`).
+4.  **The Find & Re-Rank**: It finds matches and re-ranks them based on:
+    *   Content Match (Similarity)
+    *   Trust Score (Metadata Confidence)
+    *   *Match found: "Section 8: Dental Care is NOT covered in the Basic Plan."* (Score: 0.88, Confidence: 1.0 -> Final: 0.91)
+5.  **Return**: The Librarian hands this verified paragraph back to the Strategist.
 
 ---
 

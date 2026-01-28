@@ -17,22 +17,63 @@ public class DynamoVectorRepository
 
     public async Task SaveVectorsAsync(List<VectorChunk> vectors)
     {
-        // DynamoDB BatchWrite has a limit of 25 items, so we loop individually for simplicity in this demo
-        // For production large datasets, use BatchWriteItem
         foreach (var v in vectors)
         {
             var item = new Dictionary<string, AttributeValue>
             {
-                ["Id"] = new AttributeValue { S = Guid.NewGuid().ToString() },
+                ["Id"] = new AttributeValue { S = v.Id }, // Use the chunk's ID
                 ["Text"] = new AttributeValue { S = v.Text },
                 ["SessionId"] = new AttributeValue { S = v.SessionId ?? "GLOBAL" },
-                // Store embedding as a JSON list of numbers (easiest for parsing back)
-                ["EmbeddingJson"] = new AttributeValue { S = JsonSerializer.Serialize(v.Embedding) }
+                ["EmbeddingJson"] = new AttributeValue { S = JsonSerializer.Serialize(v.Embedding) },
+                // Store metadata map for re-ranking
+                ["MetadataJson"] = new AttributeValue { S = JsonSerializer.Serialize(v.Metadata) }
             };
 
             await _client.PutItemAsync(TableName, item);
         }
         Console.WriteLine($"[Dynamo] Successfully saved {vectors.Count} vectors.");
+    }
+
+    public async Task<List<VectorChunk>> GetVectorsByIdsAsync(IEnumerable<string> chunkIds)
+    {
+         var list = new List<VectorChunk>();
+         var ids = chunkIds.ToList();
+         
+         // BatchGetItem has limit of 100 items per request
+         for (int i = 0; i < ids.Count; i += 100)
+         {
+             var batch = ids.Skip(i).Take(100).ToList();
+             var keys = batch.Select(id => new Dictionary<string, AttributeValue> { { "Id", new AttributeValue { S = id } } }).ToList();
+
+             var request = new BatchGetItemRequest
+             {
+                 RequestItems = new Dictionary<string, KeysAndAttributes>
+                 {
+                     { 
+                        TableName, 
+                        new KeysAndAttributes { Keys = keys } 
+                     }
+                 }
+             };
+
+             try 
+             {
+                var response = await _client.BatchGetItemAsync(request);
+                if (response.Responses.ContainsKey(TableName))
+                {
+                    foreach (var item in response.Responses[TableName])
+                    {
+                        list.Add(MapItem(item));
+                    }
+                }
+             }
+             catch(Exception ex)
+             {
+                 Console.WriteLine($"[Dynamo] BatchGet Error: {ex.Message}");
+             }
+         }
+         
+         return list;
     }
 
     public async Task<List<VectorChunk>> GetAllVectorsAsync()
@@ -42,25 +83,14 @@ public class DynamoVectorRepository
             var request = new ScanRequest { TableName = TableName };
             var response = await _client.ScanAsync(request);
 
-            var list = new List<VectorChunk>();
-            foreach (var item in response.Items)
-            {
-                list.Add(new VectorChunk
-                {
-                    Text = item["Text"].S,
-                    SessionId = item.ContainsKey("SessionId") ? item["SessionId"].S : "GLOBAL",
-                    // Deserialize the JSON string back to float[]
-                    Embedding = JsonSerializer.Deserialize<float[]>(item["EmbeddingJson"].S) ?? []
-                });
-            }
-            return list;
+            return response.Items.Select(MapItem).ToList();
         }
         catch (ResourceNotFoundException)
         {
-            // Table doesn't exist or is empty
             return new List<VectorChunk>();
         }
     }
+    
     public async Task<List<VectorChunk>> GetVectorsBySessionAsync(string sessionId)
     {
         try
@@ -78,22 +108,29 @@ public class DynamoVectorRepository
             };
             
             var response = await _client.ScanAsync(request);
-
-            var list = new List<VectorChunk>();
-            foreach (var item in response.Items)
-            {
-                list.Add(new VectorChunk
-                {
-                    Text = item["Text"].S,
-                    SessionId = item.ContainsKey("SessionId") ? item["SessionId"].S : "GLOBAL",
-                    Embedding = JsonSerializer.Deserialize<float[]>(item["EmbeddingJson"].S) ?? []
-                });
-            }
-            return list;
+            return response.Items.Select(MapItem).ToList();
         }
         catch (ResourceNotFoundException)
         {
             return new List<VectorChunk>();
         }
+    }
+
+    private VectorChunk MapItem(Dictionary<string, AttributeValue> item)
+    {
+        var chunk = new VectorChunk
+        {
+            Text = item["Text"].S,
+            SessionId = item.ContainsKey("SessionId") ? item["SessionId"].S : "GLOBAL",
+            Embedding = JsonSerializer.Deserialize<float[]>(item["EmbeddingJson"].S) ?? []
+        };
+        
+        if (item.ContainsKey("Id")) chunk.Id = item["Id"].S;
+        if (item.ContainsKey("MetadataJson")) 
+        {
+            chunk.Metadata = JsonSerializer.Deserialize<Dictionary<string, string>>(item["MetadataJson"].S) ?? new();
+        }
+
+        return chunk;
     }
 }

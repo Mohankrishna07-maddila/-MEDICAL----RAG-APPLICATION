@@ -63,4 +63,22 @@ Since both vectors have high values in Dimension 24, they point in a similar dir
 
 1.  **Text -> Attributes**: The AI scores the text on hundreds of secret attributes (Medical? Angry? Question? Past Tense?).
 2.  **Attributes -> Vector**: The list of these scores is the Vector.
-3.  **Similarity**: We just check if two lists have high scores in the same places.
+
+---
+
+## 4. Why Vectors Aren't Enough (The Need for Metadata)
+
+Vectors are great at finding *similar* meanings, but they are bad at *strict filters*.
+
+**The Problem:**
+*   **Document A**: "Our Gold Plan covers dental." (Customer Policy)
+*   **Document B**: "Our Employee Plan covers dental." (Internal Policy)
+
+These two sentences have **almost identical meanings**, so their Vectors will be nearly identical (e.g., `0.98` Similarity). A simple Vector Search might accidentally show the Internal Policy to a Customer!
+
+**The Solution (Metadata):**
+We tag each document with a label (Metadata) like `role:customer` or `role:employee`.
+1.  **Filter First**: We check the **Metadata Index** to find only "Customer" documents.
+2.  **Search Second**: We run Vector Search *only* on that safe list.
+
+This gives us the best of both worlds: **Smart Search** (Vectors) + **Strict Rules** (Metadata).

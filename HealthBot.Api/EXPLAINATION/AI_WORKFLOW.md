@@ -9,7 +9,10 @@ The HealthBot is a .NET Web API that interfaces with a Frontend (Blazor/React) a
 **Core Components:**
 - **HealthBot.Api**: The backend handling logic, context management, and API endpoints.
 - **Ollama (Local LLM)**: Hosts the `gemma3:4b` model for generating responses.
-- **DynamoDB**: Stores conversation history (`DynamoConversationMemory`) and vectors (`DynamoVectorRepository`).
+- **DynamoDB**:
+    - `DynamoConversationMemory`: Stores chat history.
+    - `VectorStore`: Stores document chunks and embeddings.
+    - `HealthBot_MetadataIndex`: **[NEW]** An inverted index for fast metadata filtering (e.g., `role:customer` -> `[ChunkId1, ChunkId2]`).
 - **AWS S3**: Stores policy documents which are indexed into vectors.
 
 ---
@@ -28,11 +31,12 @@ Before involving the AI, the system deals with specific cases instantly:
 If no short-curcuit triggers, the system builds the context for the AI:
 1.  **Conversation History**: Fetches the last 6 messages from DynamoDB.
 2.  **Frustration Detection**: Checks for keywords like "stupid", "broken" or repeated confusion. If detected, `IsFrustrated` flag is set.
-3.  **Vector RAG (Policy Search)**:
-    *   Embeds the user's question using `EmbeddingService`.
-    *   Searches `DynamoVectorRepository` for matching policy chunks.
-    *   If matches are found (Cosine Similarity > 0.45), they are added to the context.
-    *   If no matches are found for a relevant query, `IsLowConfidence` flag is set.
+3.  **Metadata-Driven RAG (Policy Search)**:
+    *   **Filter**: Checks `HealthBot_MetadataIndex` for chunks matching the user's role (e.g., `role:customer`).
+    *   **Embed**: Embeds the user's question using `EmbeddingService`.
+    *   **Search**: Searches *only* the filtered chunks in `VectorStore` (Vector Search).
+    *   **Re-Rank**: combined score = `0.7 * SemanticSimilarity + 0.3 * MetadataConfidence`.
+    *   **Result**: Returns top matching chunks with **Citations** (e.g., `[Source: Gold Plan]`).
 
 ### Step 3: Handoff Logic
 Before generating an answer, the system checks the flags from Step 2:
@@ -43,10 +47,10 @@ Before generating an answer, the system checks the flags from Step 2:
 If no handoff is needed, the system generates a response:
 1.  **Prompt Construction**: A system prompt is built containing:
     *   Identity Rules ("You are an AI for hospital insurance...").
-    *   Context (Conversation History + Policy Chunks).
+    *   Context (Conversation History + Policy Chunks w/ Citations).
     *   The User's Question.
 2.  **Ollama Inference**: The prompt is sent to `http://localhost:11434/api/generate` (Model: `gemma3:4b`).
-3.  **Response**: The generated text is returned.
+3.  **Response**: The generated text is returned, citing the sources provided in the context.
 
 ### Step 5: Persistence
 1.  The User's question is saved to `DynamoConversationMemory`.
@@ -63,13 +67,15 @@ If no handoff is needed, the system generates a response:
 - **Function**: Handles both chat generation and intent classification (if enabled).
 
 ### `PolicyRagService`
-- **Role**: Manages the Knowledge Base.
+- **Role**: Manages the Knowledge Base and Metadata Index.
 - **Indexing**:
-    1.  Scans AWS S3 for documents.
-    2.  Chunks text into 1000-character segments.
-    3.  Generates embeddings via `EmbeddingService`.
-    4.  Stores Vectors + Text in DynamoDB.
-- **Retrieval**: vector similarity search to find relevant policy info.
+    1.  Chunks text and generates embeddings.
+    2.  Stores Chunks in `VectorStore`.
+    3.  Updates Inverted Index in `HealthBot_MetadataIndex` (Term -> ChunkIds).
+- **Retrieval**: 
+    1.  **Metadata Filter**: Gets candidate ID list from Index.
+    2.  **Vector Search**: Scans only candidate chunks.
+    3.  **Re-Ranking**: Boosts results based on metadata confidence.
 
 ### `HybridContextService`
 - **Role**: The "Brain" that decides *what* the AI should know.
@@ -90,7 +96,8 @@ sequenceDiagram
     participant API as ChatController
     participant Hybrid as HybridContextService
     participant RAG as PolicyRagService
-    participant DB as DynamoDB
+    participant Meta as MetadataIndex
+    participant DB as VectorStore
     participant LLM as Ollama (Gemma)
 
     User->>API: Send Message
@@ -101,18 +108,19 @@ sequenceDiagram
     end
 
     API->>Hybrid: BuildContext(Message)
-    Hybrid->>DB: Fetch History
-    Hybrid->>RAG: Search Policy (Vector Search)
-    RAG-->>Hybrid: Return Relevant Chunks
-    Hybrid-->>API: Context + Flags (Frustrated/LowConf)
+    Hybrid->>RAG: Search Policy (UserRole, Query)
+    RAG->>Meta: Get Chunk IDs for "role:customer"
+    Meta-->>RAG: Return List of IDs
+    RAG->>DB: Fetch Vectors for these IDs
+    RAG->>RAG: Cosine Similarity & Re-Ranking
+    RAG-->>Hybrid: Return Relevant Chunks + Citations
+    Hybrid-->>API: Context + Flags
 
     alt Frustrated OR Low Confidence
-        API->>DB: Create Ticket
         API->>User: "Connecting you to agent..."
     else Standard Flow
         API->>LLM: Generate(Prompt + Context)
-        LLM-->>API: Generated Answer
-        API->>DB: Save Conversation
+        LLM-->>API: Answer (with Citations)
         API->>User: Return Answer
     end
 ```
