@@ -1,0 +1,40 @@
+# HealthBot Project Requirements
+
+## System Prerequisites
+- **.NET SDK**: Version 8.0 or later
+- **Ollama**: Must be running locally on default port (http://localhost:11434)
+- **AWS CLI**: Configured with valid credentials (for DynamoDB/S3 access)
+
+## Project Assets
+
+### External Tools (AI & Cloud)
+| Resource Type | Name / Config | Description |
+|--------------|---------------|-------------|
+| **LLM Model** | `gemma3:4b` | Required for `LocalLlmService` (Ollama) |
+| **DynamoDB** | `SupportTickets` | Stores user support tickets |
+| **DynamoDB** | `VectorStore` | Stores RAG embeddings/vectors |
+| **DynamoDB** | `RagSyncState` | Tracks incremental sync state |
+| **DynamoDB** | `HealthBot_MetadataIndex`* | (*Inferred*) Stores metadata filtering index |
+| **S3** | *Configured in AppSettings* | Stores policy documents |
+
+*(Note: Ensure your AWS user has read/write permissions for these tables)*
+
+## Software Dependencies (NuGet)
+
+### Backend (HealthBot.Api)
+- `AWSSDK.Extensions.NETCore.Setup` (4.0.3.21)
+- `AWSSDK.S3` (4.0.17.3)
+- `AWSSDK.DynamoDBv2` (4.0.4)
+- `Microsoft.AspNetCore.Authentication.JwtBearer` (8.0.1)
+- `Microsoft.AspNetCore.OpenApi` (10.0.1)
+- `Swashbuckle.AspNetCore` (10.1.0)
+
+### Frontend (HealthBot.Ui)
+- `Microsoft.AspNetCore.Components.WebAssembly` (8.0.23)
+- `Microsoft.AspNetCore.Components.WebAssembly.DevServer` (8.0.23)
+
+## Setup Instructions
+1. **Install .NET 8**: `dotnet --version` should return 8.0.x
+2. **Start Ollama**: Run `ollama serve` and ensure `ollama list` shows `gemma3:4b`.
+3. **Configure AWS**: Run `aws configure` to set your access keys.
+4. **Restore Packages**: Run `dotnet restore` in the solution root.
